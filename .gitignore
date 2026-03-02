@@ -1,0 +1,32 @@
+# Переменные окружения
+.env
+
+# База данных
+database.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи
+*.log
+
+# Временные файлы
+*.tmp
+*.temp
+
+# Продакшн
+.env.production
+.DS_Store
+Thumbs.db

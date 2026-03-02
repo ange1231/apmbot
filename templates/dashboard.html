@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Админ панель{% endblock %}
+
+{% block header %}Главная панель{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Пользователи
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ users_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Активные ганпаки
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ gunpacks_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-box fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Активные каналы
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ channels_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-broadcast-tower fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2 stats-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Всего скачиваний
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_downloads }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-download fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Последние пользователи</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_users %}
+                    {% for user in recent_users %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user-circle fa-2x text-gray-300"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold">{{ user.first_name }} {{ user.last_name }}</div>
+                            <div class="text-muted small">@{{ user.username or 'N/A' }} • ID: {{ user.telegram_id }}</div>
+                            <div class="text-muted small">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Пользователей пока нет</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Последние скачивания</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_downloads %}
+                    {% for download in recent_downloads %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-download fa-2x text-gray-300"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="fw-bold">{{ download.user.first_name }}</div>
+                            <div class="text-muted small">{{ download.gunpack.name }}</div>
+                            <div class="text-muted small">{{ download.downloaded_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">Скачиваний пока нет</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">Быстрые действия</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('channels') }}" class="btn btn-info w-100">
+                            <i class="fas fa-broadcast-tower me-2"></i>Управление каналами
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('new_gunpack') }}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>Добавить ганпак
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('export_users_xml') }}" class="btn btn-success w-100">
+                            <i class="fas fa-file-export me-2"></i>Экспорт пользователей (XML)
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('statistics') }}" class="btn btn-info w-100">
+                            <i class="fas fa-chart-bar me-2"></i>Статистика
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('gunpacks') }}" class="btn btn-warning w-100">
+                            <i class="fas fa-box me-2"></i>Управление ганпаками
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

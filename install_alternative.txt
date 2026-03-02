@@ -1,0 +1,14 @@
+# Альтернативная установка пакетов по одному
+
+pip install aiogram
+pip install flask
+pip install flask-sqlalchemy
+pip install sqlalchemy
+pip install python-dotenv
+pip install aiofiles
+pip install requests
+pip install jinja2
+
+# Или обновить pip и установить все
+pip install --upgrade pip
+pip install -r requirements.txt

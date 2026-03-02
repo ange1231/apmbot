@@ -1,0 +1,93 @@
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+from datetime import datetime
+import config
+
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True)
+    telegram_id = Column(Integer, unique=True, nullable=False)
+    username = Column(String(255))
+    first_name = Column(String(255))
+    last_name = Column(String(255))
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    downloads = relationship("Download", back_populates="user")
+
+class Channel(Base):
+    __tablename__ = 'channels'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)  # @channel_name
+    title = Column(String(255), nullable=False)  # Название канала
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    gunpacks = relationship("Gunpack", secondary="gunpack_channels", back_populates="channels")
+
+class GunpackChannel(Base):
+    __tablename__ = 'gunpack_channels'
+    
+    id = Column(Integer, primary_key=True)
+    gunpack_id = Column(Integer, ForeignKey('gunpacks.id'), nullable=False)
+    channel_id = Column(Integer, ForeignKey('channels.id'), nullable=False)
+
+class Gunpack(Base):
+    __tablename__ = 'gunpacks'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    image_url = Column(String(500))
+    download_link = Column(String(500), nullable=False)
+    channels_required = Column(Text)  # Оставляем для обратной совместимости
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    downloads = relationship("Download", back_populates="gunpack")
+    channels = relationship("Channel", secondary="gunpack_channels", back_populates="gunpacks")
+
+class Download(Base):
+    __tablename__ = 'downloads'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    gunpack_id = Column(Integer, ForeignKey('gunpacks.id'), nullable=False)
+    downloaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", back_populates="downloads")
+    gunpack = relationship("Gunpack", back_populates="downloads")
+
+# Создание базы данных
+engine = create_engine(f'sqlite:///{config.DB_PATH}')
+Base.metadata.create_all(engine)
+
+Session = sessionmaker(bind=engine)
+
+def get_db():
+    return Session()
+
+def init_default_channels():
+    """Инициализация каналов по умолчанию"""
+    db = get_db()
+    try:
+        # Проверяем, есть ли уже каналы
+        if db.query(Channel).count() == 0:
+            default_channels = [
+                Channel(name='@channel1', title='Channel 1', description='Первый канал для подписки'),
+                Channel(name='@channel2', title='Channel 2', description='Второй канал для подписки'),
+                Channel(name='@channel3', title='Channel 3', description='Третий канал для подписки')
+            ]
+            for channel in default_channels:
+                db.add(channel)
+            db.commit()
+            print("Каналы по умолчанию созданы")
+    finally:
+        db.close()

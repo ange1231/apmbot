@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Админ панель{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 0.75rem;
+            margin: 0.25rem 0;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.3);
+            background-color: #2d3436;
+        }
+        
+        .card-dark {
+            border: 1px solid #404040;
+            background-color: #2d3436;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3436 100%);
+            color: white;
+            border-radius: 1rem 1rem 0 0 !important;
+            border-bottom: 1px solid #404040;
+        }
+        
+        .stats-card-dark {
+            border-left: 0.25rem solid #4a5568;
+            background: linear-gradient(135deg, #2d3436 0%, #1a1a1a 100%);
+        }
+        
+        .user-item-dark {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #4a5568;
+        }
+        
+        .user-item-dark:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .download-item-dark {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #28a745;
+        }
+        
+        .download-item-dark:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .gunpack-item-dark {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #4a5568;
+        }
+        
+        .gunpack-item-dark:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .channel-item-dark {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #17a2b8;
+        }
+        
+        .channel-item-dark:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .form-check-input {
+            background-color: #2d3436 !important;
+            border-color: #6c757d !important;
+        }
+        
+        .form-check-input:checked {
+            background-color: #4a5568 !important;
+            border-color: #4a5568 !important;
+        }
+        
+        .form-check-input:focus {
+            border-color: #6c757d !important;
+            box-shadow: 0 0 0 0.2rem rgba(74, 85, 104, 0.25) !important;
+        }
+        
+        /* Темные кнопки */
+        .btn-primary-dark {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3436 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(74, 85, 104, 0.3);
+        }
+        
+        .btn-primary-dark:hover {
+            background: linear-gradient(135deg, #5a6d8a 0%, #4a5568 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(74, 85, 104, 0.4);
+        }
+        
+        .btn-info-dark {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(23, 162, 184, 0.3);
+        }
+        
+        .btn-info-dark:hover {
+            background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(23, 162, 184, 0.4);
+        }
+        
+        .btn-success-dark {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-success-dark:hover {
+            background: linear-gradient(135deg, #34ce57 0%, #28a745 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn-warning-dark {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: #212529;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(255, 193, 7, 0.3);
+        }
+        
+        .btn-warning-dark:hover {
+            background: linear-gradient(135deg, #ffca2c 0%, #ffc107 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(255, 193, 7, 0.4);
+        }
+        
+        .btn-secondary-dark {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(108, 117, 125, 0.3);
+        }
+        
+        .btn-secondary-dark:hover {
+            background: linear-gradient(135deg, #7d8589 0%, #6c757d 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-danger-dark {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            border: none;
+            border-radius: 0.75rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 0.125rem 0.25rem rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn-danger-dark:hover {
+            background: linear-gradient(135deg, #e15360 0%, #dc3545 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 0.25rem 0.5rem rgba(220, 53, 69, 0.4);
+        }
+        
+        /* Логотип */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+        }
+        
+        .logo-img {
+            max-width: 120px;
+            height: auto;
+            border-radius: 1rem;
+            box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Текст */
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff;
+        }
+        
+        .text-muted {
+            color: #adb5bd !important;
+        }
+        
+        .border-secondary {
+            border-color: #404040 !important;
+        }
+        
+        .bg-dark {
+            background-color: #2d3436 !important;
+        }
+        
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .stats-card-dark {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="logo-container">
+                        <img src="/static/logoSblack.png" alt="Logo" class="logo-img">
+                    </div>
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">Админ панель</h4>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                Главная
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('users') }}">
+                                <i class="fas fa-users me-2"></i>
+                                Пользователи
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('channels') }}">
+                                <i class="fas fa-broadcast-tower me-2"></i>
+                                Каналы
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('gunpacks') }}">
+                                <i class="fas fa-box me-2"></i>
+                                Ганпаки
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('statistics') }}">
+                                <i class="fas fa-chart-bar me-2"></i>
+                                Статистика
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
+                    <h1 class="h2 text-white">{% block header %}{% endblock %}</h1>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

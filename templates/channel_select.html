@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Выбор каналов для поста{% endblock %}
+
+{% block header %}Выбор каналов для поста{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold">Создание поста для "{{ gunpack.name }}"</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('create_gunpack_post', id=gunpack.id) }}">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Выберите каналы для рассылки:</label>
+                        <div class="row">
+                            {% for channel in channels %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-body p-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="channels" 
+                                                   value="{{ channel.name }}" id="channel_{{ channel.id }}"
+                                                   {% if channel.is_active %}checked{% endif %} 
+                                                   {% if not channel.is_active %}disabled{% endif %}>
+                                            <label class="form-check-label w-100" for="channel_{{ channel.id }}">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <div class="fw-bold">{{ channel.title }}</div>
+                                                        <div class="text-muted small">{{ channel.name }}</div>
+                                                        {% if channel.description %}
+                                                        <div class="text-muted small">{{ channel.description[:50] }}{% if channel.description|length > 50 %}...{% endif %}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div>
+                                                        {% if channel.is_active %}
+                                                            <span class="badge bg-success">Активен</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Неактивен</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Выберите каналы, в которых нужно опубликовать пост. Неактивные каналы недоступны для выбора.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="post_text" class="form-label fw-bold">Текст поста (опционально):</label>
+                        <textarea class="form-control" id="post_text" name="post_text" rows="4" 
+                                  placeholder="Оставьте пустым для автоматической генерации">{{ gunpack.description or '' }}</textarea>
+                        <div class="form-text">
+                            Если не указано, будет сгенерирован автоматически на основе информации о ганпаке.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="fas fa-bullhorn me-2"></i>Предпросмотр поста:</h6>
+                            <div id="preview" class="border rounded p-3 bg-light">
+                                <div class="fw-bold">🎁 {{ gunpack.name }}</div>
+                                <div class="text-muted">{{ gunpack.description or 'Описание отсутствует' }}</div>
+                                <hr>
+                                <div class="text-center">
+                                    <button type="button" class="btn btn-primary" disabled>
+                                        🎁 Получить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('gunpacks') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Назад
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary me-2" onclick="selectAll()">
+                                <i class="fas fa-check-square me-2"></i>Выбрать все
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary me-2" onclick="deselectAll()">
+                                <i class="fas fa-square me-2"></i>Снять все
+                            </button>
+                            <button type="submit" class="btn btn-success" onclick="return confirm('Создать посты в выбранных каналах?');">
+                                <i class="fas fa-paper-plane me-2"></i>Создать посты
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:not(:disabled)');
+    checkboxes.forEach(cb => cb.checked = true);
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+}
+
+// Обновление предпросмотра при изменении текста
+document.getElementById('post_text').addEventListener('input', function() {
+    const preview = document.getElementById('preview');
+    const customText = this.value.trim();
+    
+    if (customText) {
+        preview.innerHTML = `
+            <div class="fw-bold">${customText.split('\n')[0]}</div>
+            <div class="text-muted">${customText.split('\n').slice(1).join('\n') || ' '}</div>
+            <hr>
+            <div class="text-center">
+                <button type="button" class="btn btn-primary" disabled>
+                    🎁 Получить
+                </button>
+            </div>
+        `;
+    } else {
+        preview.innerHTML = `
+            <div class="fw-bold">🎁 {{ gunpack.name }}</div>
+            <div class="text-muted">{{ gunpack.description or 'Описание отсутствует' }}</div>
+            <hr>
+            <div class="text-center">
+                <button type="button" class="btn btn-primary" disabled>
+                    🎁 Получить
+                </button>
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

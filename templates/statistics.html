@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика - Админ панель{% endblock %}
+
+{% block header %}Статистика скачиваний{% endblock %}
+
+{% block content %}
+<div class="row">
+    {% for stat in stats %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">{{ stat.gunpack.name }}</h6>
+                <span class="badge bg-primary">{{ stat.downloads_count }} скачиваний</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="progress" style="height: 25px;">
+                        {% set max_downloads = stats|map(attribute='downloads_count')|max %}
+                        {% set percentage = (stat.downloads_count / max_downloads * 100) if max_downloads > 0 else 0 %}
+                        <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%;" aria-valuenow="{{ stat.downloads_count }}" aria-valuemin="0" aria-valuemax="{{ max_downloads }}">
+                            {{ stat.downloads_count }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">Создан:</small>
+                        <div>{{ stat.gunpack.created_at.strftime('%d.%m.%Y') }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Статус:</small>
+                        <div>
+                            {% if stat.gunpack.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Неактивен</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if stat.gunpack.description %}
+                <div class="mt-2">
+                    <small class="text-muted">Описание:</small>
+                    <div class="text-truncate">{{ stat.gunpack.description }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not stats %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Нет данных для отображения</h5>
+        <p class="text-muted">Статистика появится после того, как пользователи начнут скачивать ганпаки.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,528 @@
+import asyncio
+import logging
+import json
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+import config
+from database import get_db, User, Gunpack, Download, Channel
+from channel_poster import handle_gunpack_callback
+
+logging.basicConfig(level=logging.INFO)
+
+bot = Bot(token=config.BOT_TOKEN)
+dp = Dispatcher()
+
+class CheckSubscription(StatesGroup):
+    waiting_for_check = State()
+
+def escape_markdown_v2(text: str) -> str:
+    """Экранирует специальные символы для MarkdownV2"""
+    special_chars = '_*[]()~`>#+-=|{}.!'
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    return text
+
+def get_main_keyboard():
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🎁 Ганпаки")],
+            [KeyboardButton(text="ℹ️ О боте")]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
+
+def get_gunpacks_keyboard():
+    db = get_db()
+    try:
+        gunpacks = db.query(Gunpack).filter(Gunpack.is_active == True).all()
+        keyboard = []
+        
+        for gunpack in gunpacks:
+            keyboard.append([InlineKeyboardButton(
+                text=f"📦 {gunpack.name}",
+                callback_data=f"gunpack_{gunpack.id}"
+            )])
+        
+        keyboard.append([InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_main")])
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    finally:
+        db.close()
+
+async def check_subscription(user_id: int, channels: list) -> tuple[bool, list]:
+    """Проверяет подписку пользователя на каналы, возвращает (статус, список неподписанных)"""
+    unsubscribed_channels = []
+    
+    for channel in channels:
+        try:
+            # Преобразуем формат канала для API
+            if channel.startswith('@'):
+                chat_id = channel
+            elif channel.startswith('https://t.me/'):
+                chat_id = channel.replace('https://t.me/', '@')
+            else:
+                chat_id = f"@{channel}"
+            
+            print(f"Проверка подписки на {chat_id} для пользователя {user_id}")
+            
+            member = await bot.get_chat_member(chat_id, user_id)
+            print(f"Статус пользователя: {member.status}")
+            
+            if member.status not in ['member', 'creator', 'administrator']:
+                print(f"Пользователь не подписан на {chat_id}")
+                unsubscribed_channels.append(channel)
+        except Exception as e:
+            print(f"Ошибка проверки подписки на {channel}: {e}")
+            unsubscribed_channels.append(channel)
+    
+    return len(unsubscribed_channels) == 0, unsubscribed_channels
+
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message):
+    db = get_db()
+    try:
+        user = db.query(User).filter(User.telegram_id == message.from_user.id).first()
+        if not user:
+            user = User(
+                telegram_id=message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                is_admin=(message.from_user.id == config.ADMIN_ID)
+            )
+            db.add(user)
+            db.commit()
+        
+        # Отправляем логотип с приветствием
+        try:
+            # Используем абсолютный путь для надежности
+            import os
+            from aiogram.types import FSInputFile
+            
+            logo_path = os.path.join(os.path.dirname(__file__), "logoSblack.png")
+            print(f"Пытаюсь отправить логотип: {logo_path}")
+            
+            await message.answer_photo(
+                photo=FSInputFile(logo_path),
+                caption="👋 Добро пожаловать!\n\n"
+                       "Выберите мод, который хотите получить, подпишитесь на необходимые каналы "
+                       "и получите ссылку на скачивание.\n\n"
+                       "Нажмите кнопку ниже чтобы начать:",
+                reply_markup=get_main_keyboard()
+            )
+            print("Логотип успешно отправлен!")
+        except Exception as e:
+            print(f"Ошибка отправки логотипа: {e}")
+            print(f"Путь к логотипу: {logo_path if 'logo_path' in locals() else 'не определен'}")
+            # Если логотип не загрузился, отправляем текстовое приветствие
+            await message.answer(
+                "👋 Добро пожаловать!\n\n"
+                "Выберите мод, который хотите получить, подпишитесь на необходимые каналы "
+                "и получите ссылку на скачивание.",
+                reply_markup=get_main_keyboard()
+            )
+    finally:
+        db.close()
+
+@dp.message(F.text == "🎁 Ганпаки")
+async def show_gunpacks(message: types.Message):
+    keyboard = get_gunpacks_keyboard()
+    await message.answer("📦 Доступные ганпаки:", reply_markup=keyboard)
+
+@dp.message(F.text == "ℹ️ О боте")
+async def about_bot(message: types.Message):
+    try:
+        # Используем абсолютный путь для надежности
+        import os
+        from aiogram.types import FSInputFile
+        
+        logo_path = os.path.join(os.path.dirname(__file__), "logoSblack.png")
+        print(f"Пытаюсь отправить логотип в 'О боте': {logo_path}")
+        
+        await message.answer_photo(
+            photo=FSInputFile(logo_path),
+            caption="ℹ️ **О боте**\n\n"
+                   "Этот бот позволяет получать ганпаки после подписки на каналы.\n\n"
+                   "Как пользоваться:\n"
+                   "1. Нажмите \"🎁 Ганпаки\"\n"
+                   "2. Выберите интересующий ганпак\n"
+                   "3. Подпишитесь на указанные каналы\n"
+                   "4. Нажмите \"Проверить подписки\"\n"
+                   "5. Получите ссылку на скачивание\n\n"
+                   "По вопросам пишите администратору - @shxinq.",
+            parse_mode="Markdown"
+        )
+        print("Логотип в 'О боте' успешно отправлен!")
+    except Exception as e:
+        print(f"Ошибка отправки логотипа в 'О боте': {e}")
+        print(f"Путь к логотипу: {logo_path if 'logo_path' in locals() else 'не определен'}")
+        # Fallback без логотипа
+        await message.answer(
+            "ℹ️ **О боте**\n\n"
+            "Этот бот позволяет получить доступ к файлам.\n\n"
+            "Как пользоваться (пример):\n"
+            "1. Нажмите \"🎁 Ганпаки\"\n"
+            "2. Выберите интересующий ганпак\n"
+            "3. Подпишитесь на указанные каналы (если требуется)\n"
+            "4. Нажмите \"Проверить подписки\"\n"
+            "5. Получите ссылку на скачивание\n\n"
+            "По вопросам пишите администратору - @shxinq.",
+            parse_mode="Markdown"
+        )
+
+def get_direct_image_url(url: str) -> str:
+    """Преобразует URL с разных хостингов в прямой URL изображения/GIF"""
+    if 'ibb.co' in url:
+        # Поддерживаем разные форматы ibb.co:
+        # https://ibb.co/xxxxxxx
+        # https://ibb.co/album/xxxxxxx
+        # https://ibb.co/gallery/xxxxxxx
+        
+        # Заменяем домен на i.ibb.co для прямого доступа к изображению
+        url = url.replace('https://ibb.co/', 'https://i.ibb.co/')
+        url = url.replace('http://ibb.co/', 'http://i.ibb.co/')
+        
+        # Если URL не заканчивается расширением изображения, добавляем его
+        if not any(url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']):
+            # Пробуем получить расширение из оригинального URL или добавляем .jpg
+            url += '.jpg'
+    elif 'postimg.cc' in url:
+        # PostImg уже дает прямые ссылки, оставляем как есть
+        pass
+    elif 'ezgif.com' in url:
+        # EzGif оптимизированные GIF, оставляем как есть
+        pass
+    
+    return url
+
+@dp.callback_query(F.data.startswith("gunpack_"))
+async def gunpack_details(callback: types.CallbackQuery):
+    gunpack_id = int(callback.data.split("_")[1])
+    db = get_db()
+    try:
+        gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
+        if not gunpack:
+            await callback.answer("Ганпак не найден!", show_alert=True)
+            return
+        
+        # Получаем каналы из JSON или используем активные каналы из базы
+        if gunpack.channels_required:
+            try:
+                channels = json.loads(gunpack.channels_required)
+            except json.JSONDecodeError as e:
+                print(f"Ошибка парсинга JSON каналов: {e}")
+                channels = []
+        else:
+            # Если каналы не указаны, используем все активные каналы
+            active_channels = db.query(Channel).filter(Channel.is_active == True).all()
+            channels = [channel.name for channel in active_channels]
+        
+        text = f"📦 {gunpack.name}\n\n"
+        text += f"{gunpack.description or ''}\n\n"
+        text += "📋 Условия получения:\n"
+        text += "Подпишитесь на следующие каналы:\n"
+        
+        # Создаем клавиатуру с кнопками каналов
+        channel_buttons = []
+        for channel in channels:
+            # Очищаем имя канала от @ в начале
+            channel_name = channel.lstrip('@')
+            
+            # Создаем правильный URL для канала
+            if channel.startswith('https://t.me/'):
+                channel_link = channel
+            elif channel.startswith('@'):
+                channel_link = f"https://t.me/{channel[1:]}"
+            else:
+                channel_link = f"https://t.me/{channel_name}"
+            
+            # Валидация URL
+            if channel_link and len(channel_link) > 15:  # Минимальная длина для t.me ссылки
+                print(f"Создаю кнопку для канала: {channel_name} -> {channel_link}")
+                channel_buttons.append([InlineKeyboardButton(text=f"📺 {channel_name}", url=channel_link)])
+            else:
+                print(f"Пропускаю невалидный канал: {channel}")
+        
+        # Добавляем основные кнопки
+        channel_buttons.extend([
+            [InlineKeyboardButton(text="✅ Проверить подписки", callback_data=f"check_{gunpack.id}")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+        ])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=channel_buttons)
+        
+        # Обрабатываем URL изображения для поддержки разных хостингов
+        media_url = None
+        is_gif = False
+        if gunpack.image_url:
+            try:
+                processed_url = get_direct_image_url(gunpack.image_url)
+                # Проверяем, является ли URL GIF
+                if processed_url.lower().endswith('.gif') or 'gif' in processed_url.lower():
+                    is_gif = True
+                media_url = processed_url
+            except Exception as e:
+                print(f"Ошибка обработки URL изображения: {e}")
+        
+        # Отправляем сообщение с медиа или текстом
+        try:
+            if media_url:
+                if is_gif:
+                    # Отправляем GIF
+                    await callback.message.answer_animation(
+                        animation=media_url,
+                        caption=text,
+                        reply_markup=keyboard,
+                        parse_mode="Markdown"
+                    )
+                else:
+                    # Отправляем фото
+                    await callback.message.answer_photo(
+                        photo=media_url,
+                        caption=text,
+                        reply_markup=keyboard,
+                        parse_mode="Markdown"
+                    )
+            else:
+                # Отправляем только текст
+                await callback.message.answer(
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+        except Exception as e:
+            print(f"Ошибка отправки сообщения: {e}")
+            # Если основная отправка не удалась, пробуем упрощенную версию
+            try:
+                simple_text = f"📦 {gunpack.name}\n\n{gunpack.description or ''}\n\n📋 Условия получения:\nПодпишитесь на каналы и нажмите 'Проверить подписки'"
+                await callback.message.answer(
+                    simple_text,
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="✅ Проверить подписки", callback_data=f"check_{gunpack.id}")],
+                        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+                    ])
+                )
+            except Exception as e2:
+                print(f"Ошибка отправки упрощенного сообщения: {e2}")
+                await callback.message.answer("Произошла ошибка. Попробуйте еще раз.")
+        
+    except Exception as e:
+        print(f"Общая ошибка в gunpack_details: {e}")
+        import traceback
+        traceback.print_exc()
+        await callback.message.answer("Произошла ошибка при загрузке ганпака. Попробуйте еще раз.")
+    finally:
+        db.close()
+
+    gunpack_id = int(callback.data.split("_")[1])
+    
+    # Показываем пользователю, что проверка началась
+    await callback.answer("🔄 Проверяю подписки...")
+    
+    db = get_db()
+    try:
+        gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
+        if not gunpack:
+            await callback.message.answer(
+                "❌ Ганпак не найден!",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+                ])
+            )
+            return
+        
+        # Получаем каналы из JSON или используем активные каналы из базы
+        if gunpack.channels_required:
+            try:
+                channels = json.loads(gunpack.channels_required)
+            except json.JSONDecodeError as e:
+                print(f"Ошибка парсинга JSON каналов: {e}")
+                channels = []
+        else:
+            # Если каналы не указаны, используем все активные каналы
+            active_channels = db.query(Channel).filter(Channel.is_active == True).all()
+            channels = [channel.name for channel in active_channels]
+        
+        print(f"Проверка подписок для ганпака {gunpack_id}, каналы: {channels}")
+        
+        if not channels:
+            await callback.message.answer(
+                "❌ Для этого ганпака не настроены каналы для подписки.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+                ])
+            )
+            return
+        
+        # Проверяем подписки с таймаутом
+        try:
+            print(f"Начинаю проверку подписок для пользователя {callback.from_user.id}")
+            is_subscribed, unsubscribed = await asyncio.wait_for(
+                check_subscription(callback.from_user.id, channels),
+                timeout=10.0  # 10 секунд таймаут
+            )
+            print(f"Результат проверки: is_subscribed={is_subscribed}, unsubscribed={unsubscribed}")
+        except asyncio.TimeoutError:
+            print("Таймаут проверки подписок")
+            await callback.message.answer(
+                "⏰ Время проверки подписок истекло. Попробуйте еще раз.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="✅ Проверить подписки", callback_data=f"check_{gunpack.id}")],
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+                ])
+            )
+            return
+        except Exception as e:
+            print(f"Ошибка при проверке подписок: {e}")
+            await callback.message.answer(
+                "❌ Произошла ошибка при проверке подписок. Попробуйте еще раз.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="✅ Проверить подписки", callback_data=f"check_{gunpack.id}")],
+                    [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+                ])
+            )
+            return
+        
+        if is_subscribed:
+            # Записываем скачивание
+            try:
+                user = db.query(User).filter(User.telegram_id == callback.from_user.id).first()
+                if not user:
+                    # Создаем пользователя если его нет
+                    user = User(
+                        telegram_id=callback.from_user.id,
+                        username=callback.from_user.username,
+                        first_name=callback.from_user.first_name,
+                        last_name=callback.from_user.last_name
+                    )
+                    db.add(user)
+                    db.commit()
+                
+                download = Download(user_id=user.id, gunpack_id=gunpack.id)
+                db.add(download)
+                db.commit()
+                
+                # Отправляем новое сообщение вместо редактирования (т.к. исходное сообщение содержит медиа)
+                await callback.message.answer(
+                    f"✅ Отлично! Вы подписаны на все каналы!\n\n"
+                    f"🔗 Ссылка на ганпак {gunpack.name}:\n"
+                    f"{gunpack.download_link}\n\n"
+                    f"Спасибо за подписку! 👍",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🔙 Назад к ганпакам", callback_data="back_to_gunpacks")]
+                    ])
+                )
+            except Exception as e:
+                print(f"Ошибка при записи скачивания: {e}")
+                await callback.message.answer(
+                    "✅ Вы подписаны на все каналы! Но произошла ошибка при записи скачивания.",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="🔙 Назад к ганпакам", callback_data="back_to_gunpacks")]
+                    ])
+                )
+        else:
+            # Создаем клавиатуру с кнопками каналов
+            channel_buttons = []
+            
+            # Показываем только те каналы, на которые не подписан
+            for channel in unsubscribed:
+                channel_name = channel.replace('@', '')
+                channel_link = channel if channel.startswith('https://') else f"https://t.me/{channel_name}"
+                channel_buttons.append([InlineKeyboardButton(text=f"❌ {channel_name}", url=channel_link)])
+            
+            # Показываем остальные каналы как подписанные
+            subscribed_channels = [c for c in channels if c not in unsubscribed]
+            if subscribed_channels:
+                for channel in subscribed_channels:
+                    channel_name = channel.replace('@', '')
+                    channel_link = channel if channel.startswith('https://') else f"https://t.me/{channel_name}"
+                    channel_buttons.append([InlineKeyboardButton(text=f"✅ {channel_name}", url=channel_link)])
+            
+            # Добавляем основные кнопки
+            channel_buttons.extend([
+                [InlineKeyboardButton(text="✅ Проверить подписки", callback_data=f"check_{gunpack.id}")],
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+            ])
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=channel_buttons)
+            
+            # Формируем текст сообщения
+            text = "❌ Вы не подписаны на следующие каналы!\n\n"
+            text += "Нажмите на кнопки ниже чтобы подписаться:\n"
+            
+            print(f"Отправляемое сообщение с кнопками каналов")  # Отладочный вывод
+            
+            # Проверяем, есть ли у ганпака изображение
+            has_media = gunpack.image_url is not None and gunpack.image_url.strip() != ""
+            
+            if has_media:
+                print(f"У ганпака есть медиа, отправляем новое сообщение")
+                # Если у ганпака есть изображение/GIF, отправляем новое сообщение
+                await callback.message.answer(
+                    text,
+                    reply_markup=keyboard
+                )
+            else:
+                print(f"У ганпака нет медиа, пробуем редактировать сообщение")
+                # Если у ганпака нет медиа, пробуем редактировать сообщение
+                try:
+                    await callback.message.edit_text(
+                        text,
+                        reply_markup=keyboard
+                    )
+                except Exception as e:
+                    print(f"Ошибка редактирования сообщения: {e}")
+                    print(f"Отправляем новое сообщение...")
+                    # Если не можем редактировать, отправляем новое сообщение
+                    await callback.message.answer(
+                        text,
+                        reply_markup=keyboard
+                    )
+        
+    except Exception as e:
+        print(f"Общая ошибка в check_subscriptions: {e}")
+        import traceback
+        traceback.print_exc()
+        await callback.message.answer(
+            "❌ Произошла ошибка при проверке подписок. Попробуйте еще раз.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_gunpacks")]
+            ])
+        )
+    finally:
+        db.close()
+
+@dp.callback_query(F.data.startswith("get_gunpack_"))
+async def handle_channel_gunpack_callback(callback: types.CallbackQuery):
+    """Обрабатывает нажатие на кнопку 'Получить' в канале"""
+    await handle_gunpack_callback(callback)
+
+@dp.callback_query(F.data == "back_to_main")
+async def back_to_main(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "Главное меню:",
+        reply_markup=get_main_keyboard()
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "back_to_gunpacks")
+async def back_to_gunpacks(callback: types.CallbackQuery):
+    keyboard = get_gunpacks_keyboard()
+    try:
+        await callback.message.edit_text(
+            "📦 Доступные ганпаки:", 
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        print(f"Ошибка редактирования сообщения: {e}")
+        await callback.message.answer("📦 Доступные ганпаки:", reply_markup=keyboard)
+    await callback.answer()
+
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())

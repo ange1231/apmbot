@@ -1,0 +1,121 @@
+{% extends "base_dark.html" %}
+
+{% block title %}Статистика - Админ панель{% endblock %}
+
+{% block header %}Статистика{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card-dark border-0 shadow-lg">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Всего пользователей
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card-dark border-0 shadow-lg">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Активные ганпаки
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-box fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card-dark border-0 shadow-lg">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Всего скачиваний
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats|sum(attribute='downloads_count') }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-download fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card-dark border-0 shadow-lg">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Среднее скачиваний
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ (stats|sum(attribute='downloads_count') / stats|length)|round(1) if stats else 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card card-dark border-0 shadow-lg">
+            <div class="card-header bg-dark border-secondary">
+                <h6 class="m-0 font-weight-bold text-white">Популярные ганпаки</h6>
+            </div>
+            <div class="card-body bg-dark">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-white">Ганпак</th>
+                                <th class="text-white">Скачиваний</th>
+                                <th class="text-white">Уникальных пользователей</th>
+                                <th class="text-white">Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in stats|sort(attribute='downloads_count', reverse=true) %}
+                            <tr class="gunpack-item-dark">
+                                <td class="text-white">{{ stat.gunpack.name }}</td>
+                                <td class="text-white">{{ stat.downloads_count }}</td>
+                                <td class="text-white">{{ stat.unique_users_count }}</td>
+                                <td>
+                                    {% if stat.gunpack.is_active %}
+                                        <span class="badge bg-success text-white">Активен</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary text-white">Неактивен</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

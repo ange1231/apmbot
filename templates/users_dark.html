@@ -1,0 +1,54 @@
+{% extends "base_dark.html" %}
+
+{% block title %}Пользователи - Админ панель{% endblock %}
+
+{% block header %}Пользователи{% endblock %}
+
+{% block content %}
+<div class="card card-dark border-0 shadow-lg">
+    <div class="card-header bg-dark border-secondary">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-white">Все пользователи ({{ users|length }})</h6>
+            <div>
+                <a href="{{ url_for('export_users_xml') }}" class="btn btn-success-dark btn-sm">
+                    <i class="fas fa-file-export me-2"></i>Экспорт в XML
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body bg-dark">
+        <div class="table-responsive">
+            <table class="table table-bordered table-dark">
+                <thead>
+                    <tr>
+                        <th class="text-white">ID</th>
+                        <th class="text-white">Telegram ID</th>
+                        <th class="text-white">Имя</th>
+                        <th class="text-white">Username</th>
+                        <th class="text-white">Статус</th>
+                        <th class="text-white">Дата регистрации</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="user-item-dark">
+                        <td class="text-white">{{ user.id }}</td>
+                        <td class="text-white">{{ user.telegram_id }}</td>
+                        <td class="text-white">{{ user.first_name }} {{ user.last_name }}</td>
+                        <td class="text-white">@{{ user.username or 'N/A' }}</td>
+                        <td>
+                            {% if user.is_admin %}
+                                <span class="badge bg-danger text-white">Админ</span>
+                            {% else %}
+                                <span class="badge bg-success text-white">Пользователь</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base_dark.html" %}
+
+{% block title %}{% if gunpack %}Редактирование ганпака{% else %}Новый ганпак{% endif %} - Админ панель{% endblock %}
+
+{% block header %}{% if gunpack %}Редактирование ганпака{% else %}Новый ганпак{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-dark border-0 shadow-lg">
+    <div class="card-header bg-dark border-secondary">
+        <h6 class="m-0 font-weight-bold text-white">
+            {% if gunpack %}Редактирование ганпака{% else %}Новый ганпак{% endif %}
+        </h6>
+    </div>
+    <div class="card-body bg-dark">
+        <form method="POST">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="name" class="form-label text-white">Название ганпака</label>
+                    <input type="text" class="form-control bg-dark text-white border-secondary" 
+                           id="name" name="name" value="{{ gunpack.name if gunpack else '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="download_link" class="form-label text-white">Ссылка на скачивание</label>
+                    <input type="url" class="form-control bg-dark text-white border-secondary" 
+                           id="download_link" name="download_link" value="{{ gunpack.download_link if gunpack else '' }}" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label text-white">Описание</label>
+                <textarea class="form-control bg-dark text-white border-secondary" 
+                          id="description" name="description" rows="4" required>{{ gunpack.description if gunpack else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="image_url" class="form-label text-white">URL изображения/GIF</label>
+                <input type="url" class="form-control bg-dark text-white border-secondary" 
+                       id="image_url" name="image_url" value="{{ gunpack.image_url if gunpack else '' }}"
+                       placeholder="https://i.ibb.co/xxxxx/image.jpg или https://postimg.cc/xxxxx.gif">
+                <div class="form-text text-muted">
+                    Поддерживаются изображения: ibb.co, postimg.cc, ezgif.com<br>
+                    Форматы: JPG, PNG, GIF
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">Каналы для подписки</label>
+                <div class="border border-secondary rounded p-3 bg-dark">
+                    {% if all_channels %}
+                        {% for channel in all_channels %}
+                            {% if channel.is_active %}
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input bg-dark" type="checkbox" 
+                                           name="channels" value="{{ channel.name }}" 
+                                           id="channel_{{ channel.id }}"
+                                           {% if channel.name in gunpack_channels %}checked{% endif %}>
+                                    <label class="form-check-label text-white" for="channel_{{ channel.id }}">
+                                        <strong>@{{ channel.name }}</strong>
+                                        {% if channel.title %} - {{ channel.title }}{% endif %}
+                                        <span class="badge bg-success ms-2">Активен</span>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Нет активных каналов. <a href="{{ url_for('channels') }}">Добавьте каналы</a></p>
+                    {% endif %}
+                </div>
+                <div class="form-text text-muted">
+                    Выберите каналы, на которые нужно подписаться для получения ганпака
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input bg-dark" type="checkbox" name="is_active" 
+                               id="is_active" {% if gunpack and gunpack.is_active %}checked{% endif %}>
+                        <label class="form-check-label text-white" for="is_active">
+                            Активен
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('gunpacks') }}" class="btn btn-secondary-dark">
+                    <i class="fas fa-arrow-left me-2"></i>Назад
+                </a>
+                <button type="submit" class="btn btn-primary-dark">
+                    <i class="fas fa-save me-2"></i>
+                    {% if gunpack %}Сохранить изменения{% else %}Создать ганпак{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
