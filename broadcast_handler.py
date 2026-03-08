@@ -54,7 +54,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                 # Отправляем сообщение с медиа или без
                 if media_type and media_url:
                     if media_type == 'photo':
-                        # Отправляем фото
                         await bot.send_photo(
                             chat_id=channel_info['chat_id'],
                             photo=media_url,
@@ -63,7 +62,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                             parse_mode="Markdown"
                         )
                     elif media_type == 'gif':
-                        # Отправляем GIF
                         await bot.send_animation(
                             chat_id=channel_info['chat_id'],
                             animation=media_url,
@@ -72,7 +70,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                             parse_mode="Markdown"
                         )
                     elif media_type == 'youtube':
-                        # Для YouTube просто добавляем ссылку в текст
                         youtube_text = f"{text}\n\n🎥 [Смотреть видео]({media_url})"
                         await bot.send_message(
                             chat_id=channel_info['chat_id'],
@@ -81,7 +78,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                             parse_mode="Markdown"
                         )
                     else:
-                        # Неизвестный тип, отправляем как текст
                         await bot.send_message(
                             chat_id=channel_info['chat_id'],
                             text=text,
@@ -89,7 +85,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                             parse_mode="Markdown"
                         )
                 else:
-                    # Отправляем без медиа
                     await bot.send_message(
                         chat_id=channel_info['chat_id'],
                         text=text,
@@ -111,10 +106,10 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
         print(f"❌ Ошибка при отправке рассылки: {e}")
         return False
     finally:
+        # ВАЖНО: Закрываем сессию бота, чтобы asyncio.run в Flask мог запуститься повторно
+        if hasattr(bot, 'session') and not bot.session.closed:
+            await bot.session.close()
         db.close()
-
-# Глобальная очередь для рассылок
-broadcast_queue = []
 
 async def add_broadcast_to_queue(gunpack_id, message_text, selected_channels, media_type='', media_url=''):
     """Добавить рассылку в очередь"""
