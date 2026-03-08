@@ -241,11 +241,12 @@ def broadcast():
             
             # Прямая отправка через asyncio
             try:
+                print(f"DEBUG: Попытка отправки ганпака {gunpack_id} в каналы {selected_channels}")
                 from broadcast_handler import send_broadcast_to_channels
                 import asyncio
                 
-                # Вызываем напрямую (Flask подождет завершения)
-                asyncio.run(send_broadcast_to_channels(
+                # Запускаем и ловим результат
+                result = asyncio.run(send_broadcast_to_channels(
                     int(gunpack_id), 
                     message_text, 
                     selected_channels,
@@ -253,8 +254,10 @@ def broadcast():
                     media_url
                 ))
                 
+                print(f"DEBUG: Результат функции: {result}")
                 flash('Рассылка успешно выполнена!', 'success')
             except Exception as e:
+                print(f"DEBUG: КРИТИЧЕСКАЯ ОШИБКА В APP.PY: {str(e)}")
                 flash(f'Ошибка при отправке: {str(e)}', 'error')
             
             return redirect(url_for('dashboard'))
