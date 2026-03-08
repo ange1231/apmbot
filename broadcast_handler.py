@@ -7,7 +7,7 @@ from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot import get_admin_channels
 from database import get_db, Gunpack
-from config import TELEGRAM_BOT_TOKEN
+from config import BOT_TOKEN as TELEGRAM_BOT_TOKEN
 
 # Глобальная очередь для рассылок (если используется фоновый процесс)
 broadcast_queue = []
