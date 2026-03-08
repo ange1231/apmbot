@@ -13,115 +13,65 @@ from config import BOT_TOKEN as TELEGRAM_BOT_TOKEN
 broadcast_queue = []
 
 async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels, media_type='', media_url=''):
-    """Отправка рассылки в каналы с локальной сессией бота"""
+    """Отправка рассылки: бот сам находит ID канала по его @username"""
     db = get_db()
-    
-    # Создаем локальный экземпляр бота для конкретной сессии рассылки
     temp_bot = Bot(token=TELEGRAM_BOT_TOKEN)
     
     try:
         gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
         if not gunpack:
-            print("Ганпак для рассылки не найден")
+            print("Ганпак не найден")
             return False
-        
-        # --- ПОЛУЧАЕМ КАНАЛЫ НАПРЯМУЮ ИЗ БД ---
-        # Это исключает ошибку "Event loop is closed"
-        db_channels = db.query(Channel).filter(Channel.is_active == True).all()
-        admin_channels = []
-        for ch in db_channels:
-            # Очищаем имя от @ для сравнения
-            clean_db_name = ch.name.replace('@', '').strip()
-            admin_channels.append({
-                'name': clean_db_name,
-                'chat_id': ch.chat_id
-            })
         
         success_count = 0
         error_count = 0
         
-        # Получаем инфо о боте для формирования ссылок
         bot_info = await temp_bot.get_me()
         bot_username = bot_info.username
         
         for channel_name in selected_channels:
-            # Очищаем имя канала из формы
-            target_name = channel_name.replace('@', '').strip()
-            
-            # Ищем chat_id в списке из БД
-            channel_info = next((c for c in admin_channels if c['name'] == target_name), None)
-            
-            if not channel_info:
-                print(f"❌ Канал {channel_name} не найден в базе активных каналов")
-                error_count += 1
-                continue
+            # Убеждаемся, что имя начинается с @
+            formatted_name = channel_name if channel_name.startswith('@') else f"@{channel_name}"
             
             try:
-                # Создаем кнопку-ссылку на бота
+                # ВАЖНО: Получаем актуальный ID чата напрямую через бота
+                chat = await temp_bot.get_chat(formatted_name)
+                chat_id = chat.id 
+                
+                # Создаем кнопку
                 deep_link = f"https://t.me/{bot_username}?start=gunpack_{gunpack.id}"
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(
-                        text=f"📦 Получить {gunpack.name}",
-                        url=deep_link
-                    )]
+                    [InlineKeyboardButton(text=f"📦 Получить {gunpack.name}", url=deep_link)]
                 ])
                 
-                # Формируем текст сообщения
-                text = f"{message_text}\n\n"
-                text += f"📦 **{gunpack.name}**\n"
+                text = f"{message_text}\n\n📦 **{gunpack.name}**\n"
                 if gunpack.description:
                     text += f"{gunpack.description}\n"
                 
-                # Отправка контента в зависимости от типа медиа
+                # Отправка
                 if media_type and media_url:
                     if media_type == 'photo':
-                        await temp_bot.send_photo(
-                            chat_id=channel_info['chat_id'],
-                            photo=media_url,
-                            caption=text,
-                            reply_markup=keyboard,
-                            parse_mode="Markdown"
-                        )
+                        await temp_bot.send_photo(chat_id=chat_id, photo=media_url, caption=text, reply_markup=keyboard, parse_mode="Markdown")
                     elif media_type == 'gif':
-                        await temp_bot.send_animation(
-                            chat_id=channel_info['chat_id'],
-                            animation=media_url,
-                            caption=text,
-                            reply_markup=keyboard,
-                            parse_mode="Markdown"
-                        )
+                        await temp_bot.send_animation(chat_id=chat_id, animation=media_url, caption=text, reply_markup=keyboard, parse_mode="Markdown")
                     elif media_type == 'youtube':
-                        youtube_text = f"{text}\n\n🎥 [Смотреть видео]({media_url})"
-                        await temp_bot.send_message(
-                            chat_id=channel_info['chat_id'],
-                            text=youtube_text,
-                            reply_markup=keyboard,
-                            parse_mode="Markdown",
-                            disable_web_page_preview=False
-                        )
+                        await temp_bot.send_message(chat_id=chat_id, text=f"{text}\n\n🎥 [Смотреть видео]({media_url})", reply_markup=keyboard, parse_mode="Markdown")
                 else:
-                    await temp_bot.send_message(
-                        chat_id=channel_info['chat_id'],
-                        text=text,
-                        reply_markup=keyboard,
-                        parse_mode="Markdown"
-                    )
+                    await temp_bot.send_message(chat_id=chat_id, text=text, reply_markup=keyboard, parse_mode="Markdown")
                 
-                print(f"✅ Рассылка успешно отправлена в @{target_name}")
+                print(f"✅ Успешно отправлено в {formatted_name}")
                 success_count += 1
                 
             except Exception as e:
-                print(f"❌ Ошибка при отправке в @{target_name}: {e}")
+                print(f"❌ Ошибка канала {formatted_name}: {e}")
                 error_count += 1
         
-        print(f"📊 Итог рассылки: ✅ {success_count} успешно, ❌ {error_count} ошибок")
         return success_count > 0
         
     except Exception as e:
-        print(f"❌ Критическая ошибка в обработчике: {e}")
+        print(f"❌ Критическая ошибка: {e}")
         return False
     finally:
-        # Закрываем сессию временного бота и соединение с БД
         await temp_bot.session.close()
         db.close()
 
