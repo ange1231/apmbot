@@ -106,9 +106,14 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
         print(f"❌ Ошибка при отправке рассылки: {e}")
         return False
     finally:
-        # ВАЖНО: Закрываем сессию бота, чтобы asyncio.run в Flask мог запуститься повторно
-        if hasattr(bot, 'session') and not bot.session.closed:
-            await bot.session.close()
+        # Корректное закрытие сессии для aiogram
+        try:
+            session = await bot.get_session()
+            if session:
+                await session.close()
+        except Exception as e:
+            print(f"DEBUG: Ошибка при закрытии сессии: {e}")
+            
         db.close()
 
 async def add_broadcast_to_queue(gunpack_id, message_text, selected_channels, media_type='', media_url=''):
