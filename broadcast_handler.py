@@ -109,10 +109,8 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
         print(f"❌ Критическая ошибка в обработчике: {e}")
         return False
     finally:
-        # ОБЯЗАТЕЛЬНО: закрываем сессию локального бота
-        session = await temp_bot.get_session()
-        if session:
-            await session.close()
+        # Корректное закрытие сессии для aiogram 3.x
+        await temp_bot.session.close()
         db.close()
 
 async def add_broadcast_to_queue(gunpack_id, message_text, selected_channels, media_type='', media_url=''):
