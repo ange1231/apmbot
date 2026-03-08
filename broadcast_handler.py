@@ -5,8 +5,8 @@
 import asyncio
 from aiogram import Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from bot import get_admin_channels
-from database import get_db, Gunpack
+# Импортируем только модели, не трогаем функции из bot.py во время рассылки
+from database import get_db, Gunpack, Channel 
 from config import BOT_TOKEN as TELEGRAM_BOT_TOKEN
 
 # Глобальная очередь для рассылок (если используется фоновый процесс)
@@ -17,7 +17,6 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
     db = get_db()
     
     # Создаем локальный экземпляр бота для конкретной сессии рассылки
-    # Это решает проблему "AiohttpSession is closed" при повторных вызовах
     temp_bot = Bot(token=TELEGRAM_BOT_TOKEN)
     
     try:
@@ -26,26 +25,39 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
             print("Ганпак для рассылки не найден")
             return False
         
-        # Получаем каналы, где бот админ (используем тот же токен)
-        admin_channels = await get_admin_channels()
+        # --- ПОЛУЧАЕМ КАНАЛЫ НАПРЯМУЮ ИЗ БД ---
+        # Это исключает ошибку "Event loop is closed"
+        db_channels = db.query(Channel).filter(Channel.is_active == True).all()
+        admin_channels = []
+        for ch in db_channels:
+            # Очищаем имя от @ для сравнения
+            clean_db_name = ch.name.replace('@', '').strip()
+            admin_channels.append({
+                'name': clean_db_name,
+                'chat_id': ch.chat_id
+            })
         
         success_count = 0
         error_count = 0
         
-        # Получаем инфо о боте один раз для deep_link
+        # Получаем инфо о боте для формирования ссылок
         bot_info = await temp_bot.get_me()
         bot_username = bot_info.username
         
         for channel_name in selected_channels:
-            # Ищем chat_id канала
-            channel_info = next((c for c in admin_channels if c['name'] == channel_name), None)
+            # Очищаем имя канала из формы
+            target_name = channel_name.replace('@', '').strip()
+            
+            # Ищем chat_id в списке из БД
+            channel_info = next((c for c in admin_channels if c['name'] == target_name), None)
+            
             if not channel_info:
-                print(f"Бот не админ в канале @{channel_name}")
+                print(f"❌ Канал {channel_name} не найден в базе активных каналов")
                 error_count += 1
                 continue
             
             try:
-                # Создаем кнопку
+                # Создаем кнопку-ссылку на бота
                 deep_link = f"https://t.me/{bot_username}?start=gunpack_{gunpack.id}"
                 keyboard = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
@@ -54,13 +66,13 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                     )]
                 ])
                 
-                # Формируем текст
+                # Формируем текст сообщения
                 text = f"{message_text}\n\n"
                 text += f"📦 **{gunpack.name}**\n"
                 if gunpack.description:
                     text += f"{gunpack.description}\n"
                 
-                # Отправка контента
+                # Отправка контента в зависимости от типа медиа
                 if media_type and media_url:
                     if media_type == 'photo':
                         await temp_bot.send_photo(
@@ -95,21 +107,21 @@ async def send_broadcast_to_channels(gunpack_id, message_text, selected_channels
                         parse_mode="Markdown"
                     )
                 
-                print(f"✅ Рассылка отправлена в @{channel_name}")
+                print(f"✅ Рассылка успешно отправлена в @{target_name}")
                 success_count += 1
                 
             except Exception as e:
-                print(f"❌ Ошибка отправки в @{channel_name}: {e}")
+                print(f"❌ Ошибка при отправке в @{target_name}: {e}")
                 error_count += 1
         
-        print(f"📊 Рассылка завершена: ✅ {success_count} успешно, ❌ {error_count} с ошибками")
+        print(f"📊 Итог рассылки: ✅ {success_count} успешно, ❌ {error_count} ошибок")
         return success_count > 0
         
     except Exception as e:
         print(f"❌ Критическая ошибка в обработчике: {e}")
         return False
     finally:
-        # Корректное закрытие сессии для aiogram 3.x
+        # Закрываем сессию временного бота и соединение с БД
         await temp_bot.session.close()
         db.close()
 
@@ -122,19 +134,13 @@ async def add_broadcast_to_queue(gunpack_id, message_text, selected_channels, me
         'media_type': media_type,
         'media_url': media_url
     })
-    print(f"📝 Рассылка добавлена в очередь (в очереди: {len(broadcast_queue)})")
+    print(f"📝 Добавлено в очередь (всего: {len(broadcast_queue)})")
 
 async def process_broadcast_queue():
-    """Фоновая обработка очереди"""
+    """Фоновый цикл обработки очереди"""
     while True:
         if broadcast_queue:
             data = broadcast_queue.pop(0)
-            print(f"📤 Обработка из очереди...")
-            await send_broadcast_to_channels(
-                data['gunpack_id'], 
-                data['message_text'], 
-                data['selected_channels'],
-                data['media_type'], 
-                data['media_url']
-            )
+            print(f"📤 Обработка задачи из очереди для ID {data['gunpack_id']}")
+            await send_broadcast_to_channels(**data)
         await asyncio.sleep(5)
