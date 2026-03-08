@@ -8,6 +8,7 @@ from datetime import datetime
 import config
 from database import get_db, User, Gunpack, Download, Channel, GunpackChannel, init_default_channels
 import os
+import asyncio
 
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
@@ -223,8 +224,8 @@ def broadcast():
     try:
         if request.method == 'POST':
             # Получаем данные формы
-            gunpack_id = request.form['gunpack_id']
-            message_text = request.form['message_text']
+            gunpack_id = request.form.get('gunpack_id')
+            message_text = request.form.get('message_text')
             selected_channels = request.form.getlist('channels')
             media_type = request.form.get('media_type', '')
             media_url = request.form.get('media_url', '')
@@ -243,28 +244,23 @@ def broadcast():
                 from broadcast_handler import add_broadcast_to_queue
                 import asyncio
                 
-                # Запускаем асинхронную функцию
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(add_broadcast_to_queue(
+                # Используем asyncio.run для безопасного запуска в синхронном Flask
+                asyncio.run(add_broadcast_to_queue(
                     int(gunpack_id), 
                     message_text, 
                     selected_channels,
                     media_type,
                     media_url
                 ))
-                loop.close()
                 
-                flash('Рассылка добавлена в очередь! Бот отправит сообщения в ближайшее время.', 'success')
+                flash('Рассылка успешно выполнена!', 'success')
             except Exception as e:
-                flash(f'Ошибка при добавлении рассылки: {str(e)}', 'error')
+                flash(f'Ошибка при отправке: {str(e)}', 'error')
             
             return redirect(url_for('dashboard'))
         
-        # Получаем активные ганпаки для выбора
+        # GET запрос: получаем активные ганпаки и каналы
         gunpacks = db.query(Gunpack).filter(Gunpack.is_active == True).all()
-        
-        # Получаем активные каналы
         channels = db.query(Channel).filter(Channel.is_active == True).all()
         
         return render_template('broadcast_dark.html', gunpacks=gunpacks, channels=channels)
@@ -398,7 +394,7 @@ def create_gunpack_post(id):
             flash('Ганпак не найден!', 'error')
             return redirect(url_for('gunpacks'))
         
-        # Получаем выбранные каналы из формы
+        # Получаем данные из формы
         selected_channels = request.form.getlist('channels')
         post_text = request.form.get('post_text', '').strip()
         
@@ -406,37 +402,55 @@ def create_gunpack_post(id):
             flash('Выберите хотя бы один канал!', 'error')
             return redirect(url_for('select_channels_for_post', id=id))
         
-        # Создаем посты в выбранных каналах
+        # Асинхронная логика создания постов
         from channel_poster import ChannelPoster
         import asyncio
         
-        async def create_posts():
+        async def run_posting():
+            # Создаем один экземпляр постера для всех каналов
             poster = ChannelPoster(config.BOT_TOKEN)
             results = []
-            
-            for channel in selected_channels:
-                result = await poster.create_post_with_button(channel, id, post_text if post_text else None)
-                results.append({"channel": channel, "success": result is not None})
-            
+            try:
+                for channel in selected_channels:
+                    # Передаем текст (если пустой — постер сам решит, что отправить)
+                    result = await poster.create_post_with_button(
+                        channel, 
+                        id, 
+                        post_text if post_text else None
+                    )
+                    results.append({"channel": channel, "success": result is not None})
+            finally:
+                # ОЧЕНЬ ВАЖНО: Закрываем сессию бота после цикла
+                if hasattr(poster, 'bot') and hasattr(poster.bot, 'session'):
+                    await poster.bot.session.close()
             return results
+
+        # Запускаем асинхронную задачу внутри синхронного Flask
+        try:
+            # asyncio.run() — идеальный вариант для разовых задач в Flask
+            results = asyncio.run(run_posting())
+        except Exception as e:
+            print(f"Критическая ошибка при выполнении create_posts: {e}")
+            results = []
         
-        # Запускаем асинхронную задачу
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        results = loop.run_until_complete(create_posts())
-        loop.close()
-        
-        # Анализируем результаты
+        # Анализ результатов для вывода Flash-сообщения
         success_count = sum(1 for r in results if r['success'])
         total_count = len(results)
         
-        if success_count == total_count:
-            flash(f'✅ Посты успешно созданы в {success_count} каналах!', 'success')
+        if total_count == 0:
+            flash('❌ Произошла техническая ошибка при запуске рассылки', 'error')
+        elif success_count == total_count:
+            flash(f'✅ Успех! Посты опубликованы во всех каналах ({success_count})', 'success')
         elif success_count > 0:
-            flash(f'⚠️ Посты созданы в {success_count} из {total_count} каналов', 'warning')
+            flash(f'⚠️ Частичный успех: {success_count} из {total_count} постов создано', 'warning')
         else:
-            flash('❌ Не удалось создать посты ни в одном канале', 'error')
+            flash('❌ Не удалось создать посты. Проверьте права бота в каналах', 'error')
         
+        return redirect(url_for('gunpacks'))
+        
+    except Exception as e:
+        print(f"Ошибка в роуте create_gunpack_post: {e}")
+        flash(f'Произошла системная ошибка: {str(e)}', 'error')
         return redirect(url_for('gunpacks'))
     finally:
         db.close()
