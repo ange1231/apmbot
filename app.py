@@ -239,13 +239,13 @@ def broadcast():
                 flash('Укажите URL медиа!', 'error')
                 return redirect(url_for('broadcast'))
             
-            # Добавляем рассылку в очередь для бота
+            # Прямая отправка через asyncio
             try:
-                from broadcast_handler import add_broadcast_to_queue
+                from broadcast_handler import send_broadcast_to_channels
                 import asyncio
                 
-                # Используем asyncio.run для безопасного запуска в синхронном Flask
-                asyncio.run(add_broadcast_to_queue(
+                # Вызываем напрямую (Flask подождет завершения)
+                asyncio.run(send_broadcast_to_channels(
                     int(gunpack_id), 
                     message_text, 
                     selected_channels,
