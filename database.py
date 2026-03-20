@@ -10,7 +10,7 @@ class User(Base, UserMixin): # Добавляем UserMixin
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, unique=True, nullable=True) # nullable=True, т.к. админ может быть не из ТГ
+    telegram_id = Column(String, unique=True, index=True) # nullable=True, т.к. админ может быть не из ТГ
     username = Column(String(255), unique=True) # Логин для входа на сайт
     password_hash = Column(String(255)) # Хэш пароля
     role = Column(String(50), default='user') # 'admin' или 'user'
