@@ -135,9 +135,10 @@ def dashboard():
                                    channels_count=channels_count, total_downloads=total_downloads,
                                    recent_users=recent_users, recent_downloads=recent_downloads)
         
+        gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
         return render_template('user_dashboard.html', 
                                users_count=users_count, gunpacks_count=gunpacks_count,
-                               total_downloads=total_downloads)
+                               total_downloads=total_downloads, gunpacks=gunpacks_list)
 
 @app.route('/users')
 @login_required
@@ -370,6 +371,18 @@ def broadcast():
         gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
         channels_list = db.query(Channel).filter(Channel.is_active == True).all()
         return render_template('broadcast_dark.html', gunpacks=gunpacks_list, channels=channels_list)
+
+@app.route('/demo_user')
+def demo_user():
+    """Демо-страница — показывает как выглядит панель для обычного юзера."""
+    with get_db() as db:
+        gunpacks_count = db.query(Gunpack).filter(Gunpack.is_active == True).count()
+        total_downloads = db.query(Download).count()
+        gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
+    return render_template('demo_user_view.html',
+                           gunpacks_count=gunpacks_count,
+                           total_downloads=total_downloads,
+                           gunpacks=gunpacks_list)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,20 +1,12 @@
 {% extends "base_dark.html" %}
-{% block title %}Статистика — APM Panel{% endblock %}
-{% block header %}Обзор проекта{% endblock %}
+{% block title %}Главная — APM Panel{% endblock %}
+{% block header %}Главная{% endblock %}
 
 {% block content %}
 
+<!-- STAT CARDS -->
 <div class="row g-3 mb-section">
-  <div class="col-6 col-lg-4">
-    <div class="stat-card">
-      <div>
-        <div class="stat-card-label">Нам доверяют</div>
-        <div class="stat-card-value">{{ users_count }}</div>
-      </div>
-      <div class="stat-card-icon"><i class="fas fa-users"></i></div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-4">
+  <div class="col-6">
     <div class="stat-card">
       <div>
         <div class="stat-card-label">Скачиваний</div>
@@ -23,7 +15,7 @@
       <div class="stat-card-icon"><i class="fas fa-download"></i></div>
     </div>
   </div>
-  <div class="col-12 col-lg-4">
+  <div class="col-6">
     <div class="stat-card">
       <div>
         <div class="stat-card-label">Ганпаков</div>
@@ -34,12 +26,72 @@
   </div>
 </div>
 
-<div class="glass-card text-center" style="padding:2.5rem 1.5rem;">
-  <i class="fas fa-check-circle" style="font-size:2rem; color:var(--text-dim); margin-bottom:1rem;"></i>
-  <h5 style="color:var(--white);">Вы авторизованы</h5>
-  <p style="color:var(--text-muted); font-size:13px; margin:0;">
-    Используйте команды в Telegram боте, чтобы просматривать и скачивать ганпаки.
-  </p>
+<!-- ДОСТУПНЫЕ ГАНПАКИ -->
+<div class="glass-card mb-section">
+  <div class="card-head">
+    <span class="card-title">Доступные ганпаки</span>
+    <span class="apm-badge apm-badge-active">{{ gunpacks_count }} шт.</span>
+  </div>
+  <div class="card-body-inner" style="padding:0;">
+    {% if gunpacks %}
+      {% for gp in gunpacks %}
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-bottom:1px dashed rgba(255,255,255,0.04);">
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:700; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ gp.name }}</div>
+          {% if gp.description %}
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ gp.description[:60] }}{% if gp.description|length > 60 %}…{% endif %}</div>
+          {% endif %}
+        </div>
+        <div style="margin-left:12px; flex-shrink:0;">
+          {% if gp.download_link %}
+          <a href="{{ gp.download_link }}" class="btn btn-glass-primary btn-sm" target="_blank">
+            <i class="fas fa-download"></i> Скачать
+          </a>
+          {% else %}
+          <span class="apm-badge apm-badge-inactive">Нет ссылки</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-crosshairs"></i>
+        <p>Ганпаков пока нет</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- КАК ЭТО РАБОТАЕТ -->
+<div class="glass-card">
+  <div class="card-head">
+    <span class="card-title">Как это работает</span>
+  </div>
+  <div class="card-body-inner">
+    <div class="row g-3">
+      <div class="col-4">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Подпишись</div>
+          <div class="step-desc">Подпишись на наши каналы в Telegram</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">Выбери</div>
+          <div class="step-desc">Выбери нужный ганпак из списка</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Скачай</div>
+          <div class="step-desc">Нажми кнопку и скачай файл</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

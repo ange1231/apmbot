@@ -45,7 +45,7 @@ body {
 }
 
 /* ═══════════════════════════════
-   NOISE — МНОГО ШУМА
+   NOISE — тонкий
    ═══════════════════════════════ */
 body::before {
   content: '';
@@ -57,11 +57,11 @@ body::before {
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
   background-size: 180px 180px;
   background-repeat: repeat;
-  opacity: 0.13;
+  opacity: 0.045;
   mix-blend-mode: overlay;
 }
 
-/* Second noise layer — мелкий зернистый */
+/* Second noise layer — мелкий */
 body::after {
   content: '';
   position: fixed;
@@ -71,7 +71,7 @@ body::after {
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n2'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n2)' opacity='1'/%3E%3C/svg%3E");
   background-size: 100px 100px;
-  opacity: 0.08;
+  opacity: 0.025;
   mix-blend-mode: screen;
 }
 
@@ -329,7 +329,7 @@ a:hover { color: var(--white); }
 .badge-role.admin { color: var(--white); border-color: rgba(255,255,255,0.35); }
 
 /* ═══════════════════════════════
-   HACKER BUTTONS — ПУНКТИР
+   BUTTONS — SOLID BORDER
    ═══════════════════════════════ */
 .btn {
   font-family: var(--font);
@@ -342,7 +342,7 @@ a:hover { color: var(--white); }
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0.5rem 1.2rem;
+  padding: 0.5rem 1.25rem;
   border-radius: var(--radius-full);
   text-decoration: none;
   transition: all 0.15s ease;
@@ -353,15 +353,15 @@ a:hover { color: var(--white); }
   background: transparent;
 }
 
-/* PRIMARY — белая пунктирная обводка */
+/* PRIMARY — сплошная белая обводка */
 .btn-glass-primary {
-  border: 1.5px dashed var(--dot-border);
+  border: 1.5px solid rgba(255,255,255,0.55);
   color: var(--white) !important;
 }
 
 .btn-glass-primary:hover {
-  border-color: var(--dot-border-h);
-  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.90);
+  background: rgba(255,255,255,0.07);
   color: var(--white) !important;
   transform: translateY(-1px);
 }
@@ -371,14 +371,14 @@ a:hover { color: var(--white); }
   background: rgba(255,255,255,0.03);
 }
 
-/* SECONDARY — приглушённая пунктирная */
+/* SECONDARY — приглушённая обводка */
 .btn-glass-secondary {
-  border: 1.5px dashed rgba(255,255,255,0.22);
+  border: 1.5px solid rgba(255,255,255,0.20);
   color: var(--text-dim) !important;
 }
 
 .btn-glass-secondary:hover {
-  border-color: rgba(255,255,255,0.45);
+  border-color: rgba(255,255,255,0.42);
   color: var(--white) !important;
   background: rgba(255,255,255,0.04);
   transform: translateY(-1px);
@@ -386,12 +386,12 @@ a:hover { color: var(--white); }
 
 /* DANGER */
 .btn-glass-danger {
-  border: 1.5px dashed rgba(255,80,80,0.4);
+  border: 1.5px solid rgba(255,80,80,0.38);
   color: rgba(255,120,120,0.8) !important;
 }
 
 .btn-glass-danger:hover {
-  border-color: rgba(255,80,80,0.75);
+  border-color: rgba(255,80,80,0.72);
   color: rgba(255,160,160,1) !important;
   background: rgba(255,60,60,0.06);
   transform: translateY(-1px);
@@ -422,7 +422,7 @@ a:hover { color: var(--white); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.1rem;
+  padding: 1rem 1.25rem;
   border-bottom: 1px dashed var(--border);
   gap: 10px;
   flex-wrap: wrap;
@@ -438,7 +438,7 @@ a:hover { color: var(--white); }
 }
 
 .card-body-inner {
-  padding: 1.1rem;
+  padding: 1.25rem;
 }
 
 /* ═══════════════════════════════
@@ -448,11 +448,12 @@ a:hover { color: var(--white); }
   background: var(--surface);
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.1rem 1.1rem;
+  padding: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 84px;
   transition: border-color 0.18s, background 0.18s;
 }
 
@@ -716,7 +717,7 @@ textarea.form-control {
 .quick-action-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 @media (min-width: 480px) { .quick-action-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -870,7 +871,7 @@ textarea.form-control {
 /* ═══════════════════════════════
    SECTION SPACING
    ═══════════════════════════════ */
-.mb-section { margin-bottom: 1.2rem; }
+.mb-section { margin-bottom: 1rem; }
 
 /* ═══════════════════════════════
    UTILS
@@ -895,8 +896,10 @@ textarea.form-control {
 .table-dark { background: transparent !important; }
 .table-bordered td, .table-bordered th { border-color: var(--border) !important; }
 
-/* Row/col bootstrap grid - keep it */
-.row { --bs-gutter-x: 0.75rem; --bs-gutter-y: 0; }
+/* Row/col bootstrap grid — единые отступы */
+.row { --bs-gutter-x: 1rem; --bs-gutter-y: 0; }
+.g-3, .gy-3 { --bs-gutter-y: 1rem !important; }
+.g-3, .gx-3 { --bs-gutter-x: 1rem !important; }
 
 /* ═══════════════════════════════
    SCROLLBAR
