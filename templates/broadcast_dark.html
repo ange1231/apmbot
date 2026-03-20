@@ -21,6 +21,7 @@
                     <h6 class="m-0 font-weight-bold text-white">Создание рассылки</h6>
                 </div>
                 <div class="card-body bg-dark">
+                    {% if current_user.role == 'admin' %}
                     <form method="POST">
                         <div class="mb-3">
                             <label for="gunpack_id" class="form-label text-white">Выберите ганпак</label>
@@ -51,59 +52,57 @@
                                 <option value="gif">GIF</option>
                                 <option value="youtube">YouTube видео</option>
                             </select>
-                            <div class="form-text text-muted">
-                                Выберите тип медиа для прикрепления к сообщению
-                            </div>
                         </div>
 
                         <div class="mb-3" id="media_url_container" style="display: none;">
                             <label for="media_url" class="form-label text-white">URL медиа</label>
                             <input type="url" class="form-control bg-dark text-white border-secondary" 
                                    id="media_url" name="media_url" 
-                                   placeholder="https://example.com/image.jpg или https://youtube.com/watch?v=...">
-                            <div class="form-text text-muted">
-                                Ссылка на фото, GIF или YouTube видео
-                            </div>
+                                   placeholder="https://example.com/image.jpg">
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label text-white">Каналы для рассылки</label>
-                            <div class="border border-secondary rounded p-3 bg-dark">
+                            <div class="border border-secondary rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
                                 {% if channels %}
                                     {% for channel in channels %}
                                         <div class="form-check mb-2">
-                                            <input class="form-check-input bg-dark" type="checkbox" 
+                                            <input class="form-check-input" type="checkbox" 
                                                    name="channels" value="{{ channel.name }}" 
                                                    id="channel_{{ channel.id }}">
                                             <label class="form-check-label text-white" for="channel_{{ channel.id }}">
                                                 <strong>@{{ channel.name }}</strong>
                                                 {% if channel.title %} - {{ channel.title }}{% endif %}
-                                                <span class="badge bg-info ms-2">Активен</span>
                                             </label>
                                         </div>
                                     {% endfor %}
                                 {% else %}
-                                    <p class="text-muted">Нет активных каналов. <a href="{{ url_for('channels') }}">Добавьте каналы</a></p>
+                                    <p class="text-muted small">Нет активных каналов. <a href="{{ url_for('channels') }}">Добавить?</a></p>
                                 {% endif %}
-                            </div>
-                            <div class="form-text text-muted">
-                                Выберите каналы, куда будет отправлена рассылка. Бот должен быть администратором в этих каналах.
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
+                        <div class="row pt-3">
+                            <div class="col-md-6 mb-2">
                                 <button type="submit" class="btn btn-primary-dark w-100">
-                                    <i class="fas fa-paper-plane me-2"></i>Создать рассылку
+                                    <i class="fas fa-paper-plane me-2"></i>Запустить рассылку
                                 </button>
                             </div>
                             <div class="col-md-6">
-                                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary-dark w-100">
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary w-100 text-white">
                                     <i class="fas fa-times me-2"></i>Отмена
                                 </a>
                             </div>
                         </div>
                     </form>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-lock fa-4x text-muted mb-3"></i>
+                        <h5 class="text-white">Доступ ограничен</h5>
+                        <p class="text-muted">Только администраторы могут создавать и запускать рассылки в Telegram каналы.</p>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary-dark mt-3">Вернуться на главную</a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -113,36 +112,30 @@
         <div class="col-12">
             <div class="card card-dark border-0 shadow-lg">
                 <div class="card-header bg-dark border-secondary">
-                    <h6 class="m-0 font-weight-bold text-white">📋 Как это работает</h6>
+                    <h6 class="m-0 font-weight-bold text-white">📋 Инструкция по работе</h6>
                 </div>
                 <div class="card-body bg-dark">
                     <div class="row">
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <div class="badge bg-primary-dark p-3 rounded-circle">
-                                    <i class="fas fa-edit fa-2x"></i>
-                                </div>
-                                <h6 class="text-white mt-2">1. Создание</h6>
-                                <p class="text-muted small">Выберите ганпак, напишите текст и выберите каналы</p>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
+                                <i class="fas fa-edit fa-2x"></i>
                             </div>
+                            <h6 class="text-white">1. Контент</h6>
+                            <p class="text-muted small">Выберите нужный ганпак и составьте привлекательный текст поста.</p>
                         </div>
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <div class="badge bg-success-dark p-3 rounded-circle">
-                                    <i class="fas fa-paper-plane fa-2x"></i>
-                                </div>
-                                <h6 class="text-white mt-2">2. Отправка</h6>
-                                <p class="text-muted small">Бот отправит посты с кнопкой "Получить" в выбранные каналы</p>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
+                                <i class="fas fa-check-double fa-2x"></i>
                             </div>
+                            <h6 class="text-white">2. Каналы</h6>
+                            <p class="text-muted small">Отметьте галочками каналы, в которых бот имеет права администратора.</p>
                         </div>
-                        <div class="col-md-4">
-                            <div class="text-center mb-3">
-                                <div class="badge bg-info-dark p-3 rounded-circle">
-                                    <i class="fas fa-download fa-2x"></i>
-                                </div>
-                                <h6 class="text-white mt-2">3. Получение</h6>
-                                <p class="text-muted small">Пользователи нажимают кнопку и получают ганпак</p>
+                        <div class="col-md-4 text-center mb-3">
+                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
+                                <i class="fas fa-rocket fa-2x"></i>
                             </div>
+                            <h6 class="text-white">3. Результат</h6>
+                            <p class="text-muted small">После нажатия кнопки бот мгновенно опубликует пост с кнопкой получения.</p>
                         </div>
                     </div>
                 </div>
@@ -160,11 +153,10 @@ document.getElementById('media_type').addEventListener('change', function() {
         mediaUrlContainer.style.display = 'block';
         mediaUrl.required = true;
         
-        // Обновляем placeholder в зависимости от типа медиа
         if (this.value === 'youtube') {
-            mediaUrl.placeholder = 'https://youtube.com/watch?v=... или https://youtu.be/...';
+            mediaUrl.placeholder = 'https://youtube.com/watch?v=...';
         } else {
-            mediaUrl.placeholder = 'https://example.com/image.jpg или https://example.com/animation.gif';
+            mediaUrl.placeholder = 'https://example.com/image.jpg';
         }
     } else {
         mediaUrlContainer.style.display = 'none';
