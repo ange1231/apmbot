@@ -16,7 +16,6 @@ from urllib.parse import parse_qsl
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.config['DEBUG'] = True
 
 # ТВОЙ ID ДЛЯ ПРОВЕРКИ АДМИНКИ
 ADMIN_ID = 6211527632 
@@ -29,11 +28,8 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    db = get_db()
-    try:
+    with get_db() as db:
         return db.query(User).filter(User.id == int(user_id)).first()
-    finally:
-        db.close()
 
 def admin_required(f):
     @wraps(f)
@@ -44,7 +40,6 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Вспомогательная функция для Telegram Auth ---
 def verify_telegram_data(init_data):
     try:
         vals = dict(parse_qsl(init_data))
@@ -72,15 +67,12 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        db = get_db()
-        try:
+        with get_db() as db:
             user = db.query(User).filter(User.username == username).first()
             if user and user.password_hash and bcrypt.check_password_hash(user.password_hash, password):
                 login_user(user)
                 return redirect(url_for('dashboard'))
             flash('Неверный логин или пароль', 'error')
-        finally:
-            db.close()
     return render_template('login_dark.html')
 
 @app.route('/auth-tg', methods=['POST'])
@@ -92,8 +84,7 @@ def auth_tg():
     if user_info:
         tg_id_int = user_info.get('id')
         tg_id_str = str(tg_id_int)
-        db = get_db()
-        try:
+        with get_db() as db:
             user = db.query(User).filter(User.telegram_id == tg_id_str).first()
             target_role = 'admin' if tg_id_int == ADMIN_ID else 'user'
             
@@ -107,19 +98,12 @@ def auth_tg():
                 db.add(user)
                 db.commit()
                 db.refresh(user)
-            else:
-                if user.role != target_role:
-                    user.role = target_role
-                    db.commit()
+            elif user.role != target_role:
+                user.role = target_role
+                db.commit()
 
             login_user(user)
             return jsonify({"success": True})
-        except Exception as e:
-            print(f"Database error: {e}")
-            return jsonify({"success": False, "error": str(e)}), 500
-        finally:
-            db.close()
-    
     return jsonify({"success": False}), 400
 
 @app.route('/logout')
@@ -136,8 +120,7 @@ def index():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    db = get_db()
-    try:
+    with get_db() as db:
         users_count = db.query(User).count()
         gunpacks_count = db.query(Gunpack).count()
         channels_count = db.query(Channel).count()
@@ -148,107 +131,57 @@ def dashboard():
             recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
             
             return render_template('dashboard_dark.html', 
-                                   users_count=users_count,
-                                   gunpacks_count=gunpacks_count,
-                                   channels_count=channels_count,
-                                   total_downloads=total_downloads,
-                                   recent_users=recent_users,
-                                   recent_downloads=recent_downloads)
-        else:
-            return render_template('user_dashboard.html', 
-                                   users_count=users_count,
-                                   gunpacks_count=gunpacks_count,
-                                   total_downloads=total_downloads)
-    finally:
-        db.close()
+                                   users_count=users_count, gunpacks_count=gunpacks_count,
+                                   channels_count=channels_count, total_downloads=total_downloads,
+                                   recent_users=recent_users, recent_downloads=recent_downloads)
+        
+        return render_template('user_dashboard.html', 
+                               users_count=users_count, gunpacks_count=gunpacks_count,
+                               total_downloads=total_downloads)
 
 @app.route('/users')
 @login_required
 @admin_required
 def users():
-    db = get_db()
-    try:
+    with get_db() as db:
         users_list = db.query(User).order_by(User.created_at.desc()).all()
         return render_template('users_dark.html', users=users_list)
-    finally:
-        db.close()
-
-# Исправление ошибки BuildError: Добавляем функции экспорта
-@app.route('/admin/export/xml')
-@login_required
-@admin_required
-def export_users_xml():
-    return "Функция экспорта XML находится в разработке", 200
-
-@app.route('/admin/export/csv')
-@login_required
-@admin_required
-def export_users_csv():
-    return "Функция экспорта CSV находится в разработке", 200
-
-@app.route('/admin/export/json')
-@login_required
-@admin_required
-def export_users_json():
-    db = get_db()
-    try:
-        users_list = db.query(User).all()
-        data = [{"id": u.id, "tg_id": u.telegram_id, "username": u.username, "role": u.role} for u in users_list]
-        return jsonify(data)
-    finally:
-        db.close()
 
 @app.route('/statistics')
 @login_required
 @admin_required
 def statistics():
-    db = get_db()
-    try:
+    with get_db() as db:
         total_users = db.query(User).count()
         gunpacks = db.query(Gunpack).all()
-        stats = []
-        for gp in gunpacks:
-            downloads = db.query(Download).filter(Download.gunpack_id == gp.id).count()
-            stats.append({'gunpack': gp, 'downloads_count': downloads})
+        stats = [{'gunpack': gp, 'downloads_count': db.query(Download).filter(Download.gunpack_id == gp.id).count()} for gp in gunpacks]
         return render_template('statistics_dark.html', stats=stats, total_users=total_users)
-    finally:
-        db.close()
 
 # --- 5. Управление Ганпаками ---
 @app.route('/gunpacks')
 @login_required
 def gunpacks():
-    db = get_db()
-    try:
+    with get_db() as db:
         gunpacks_list = db.query(Gunpack).order_by(Gunpack.created_at.desc()).all()
         return render_template('gunpacks_dark_fixed.html', gunpacks=gunpacks_list)
-    finally:
-        db.close()
 
 @app.route('/gunpacks/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_gunpack(id):
-    db = get_db()
-    try:
+    with get_db() as db:
         gp = db.query(Gunpack).get(id)
         if gp:
             db.delete(gp)
             db.commit()
             flash('Ганпак удален', 'success')
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка: {e}', 'error')
-    finally:
-        db.close()
-    return redirect(url_for('gunpacks'))
+        return redirect(url_for('gunpacks'))
 
 @app.route('/gunpacks/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def new_gunpack():
-    db = get_db()
-    try:
+    with get_db() as db:
         if request.method == 'POST':
             selected_channels = request.form.getlist('channels')
             gunpack = Gunpack(
@@ -267,15 +200,12 @@ def new_gunpack():
         
         all_channels = db.query(Channel).all()
         return render_template('gunpack_form_dark.html', gunpack=None, all_channels=all_channels, gunpack_channels=[])
-    finally:
-        db.close()
 
 @app.route('/gunpacks/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_gunpack(id):
-    db = get_db()
-    try:
+    with get_db() as db:
         gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
         if not gunpack:
             flash('Ганпак не найден!', 'error')
@@ -286,8 +216,7 @@ def edit_gunpack(id):
             gunpack.description = request.form['description']
             gunpack.image_url = request.form['image_url']
             gunpack.download_link = request.form['download_link']
-            selected_channels = request.form.getlist('channels')
-            gunpack.channels_required = json.dumps(selected_channels)
+            gunpack.channels_required = json.dumps(request.form.getlist('channels'))
             gunpack.is_active = 'is_active' in request.form
             gunpack.updated_at = datetime.utcnow()
             db.commit()
@@ -297,78 +226,46 @@ def edit_gunpack(id):
         all_channels = db.query(Channel).all()
         gunpack_channels = json.loads(gunpack.channels_required) if gunpack.channels_required else []
         return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
-    finally:
-        db.close()
 
 # --- 6. Управление Каналами ---
 @app.route('/channels', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def channels():
-    db = get_db()
-    try:
+    with get_db() as db:
         if request.method == 'POST':
-            name = request.form.get('name', '').strip()
-            title = request.form.get('title', '').strip()
+            name, title = request.form.get('name', '').strip(), request.form.get('title', '').strip()
             if name and title:
                 if not name.startswith('@') and not name.startswith('-100'):
                     name = '@' + name
-                new_ch = Channel(name=name, title=title, is_active=True)
-                db.add(new_ch)
+                db.add(Channel(name=name, title=title, is_active=True))
                 db.commit()
                 flash('Канал добавлен', 'success')
             return redirect(url_for('channels'))
         
         channels_list = db.query(Channel).all()
         return render_template('channels_dark.html', channels=channels_list)
-    finally:
-        db.close()
 
 @app.route('/channels/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_channel(id):
-    db = get_db()
-    try:
+    with get_db() as db:
         ch = db.query(Channel).get(id)
         if ch:
             db.delete(ch)
             db.commit()
             flash('Канал удален', 'success')
-    except Exception as e:
-        db.rollback()
-    finally:
-        db.close()
-    return redirect(url_for('channels'))
+        return redirect(url_for('channels'))
 
 # --- 7. Управление Пользователями ---
-@app.route('/users/<int:id>/delete', methods=['POST'])
-@login_required
-@admin_required
-def delete_user(id):
-    db = get_db()
-    try:
-        user = db.query(User).get(id)
-        if user:
-            if int(user.telegram_id) == ADMIN_ID:
-                flash('Нельзя удалить главного администратора!', 'error')
-            else:
-                db.delete(user)
-                db.commit()
-                flash('Пользователь удален', 'success')
-    finally:
-        db.close()
-    return redirect(url_for('users'))
-
 @app.route('/users/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_user(id):
-    db = get_db()
-    try:
+    with get_db() as db:
         user = db.query(User).get(id)
-        if not user:
-            return redirect(url_for('users'))
+        if not user: return redirect(url_for('users'))
         if request.method == 'POST':
             if int(user.telegram_id) == ADMIN_ID:
                 flash('Роль главного администратора нельзя изменить.', 'error')
@@ -378,16 +275,41 @@ def edit_user(id):
                 flash('Данные пользователя обновлены', 'success')
             return redirect(url_for('users'))
         return render_template('user_form_dark.html', user=user)
-    finally:
-        db.close()
 
-# --- 8. Сервисные функции ---
+@app.route('/users/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(id):
+    with get_db() as db:
+        user = db.query(User).get(id)
+        if user and int(user.telegram_id) != ADMIN_ID:
+            db.delete(user)
+            db.commit()
+            flash('Пользователь удален', 'success')
+        return redirect(url_for('users'))
+
+# --- 8. Функции экспорта и очистки (Заглушки от BuildError) ---
+@app.route('/admin/export/xml')
+@app.route('/admin/export/csv')
+@login_required
+@admin_required
+def export_stub():
+    flash('Эта функция временно отключена.', 'info')
+    return redirect(url_for('dashboard'))
+
+@app.route('/admin/cleanup-database')
+@login_required
+@admin_required
+def cleanup_database():
+    flash('Очистка БД запрещена.', 'error')
+    return redirect(url_for('dashboard'))
+
+# --- 9. Рассылка ---
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def broadcast():
-    db = get_db()
-    try:
+    with get_db() as db:
         if request.method == 'POST':
             gunpack_id = request.form.get('gunpack_id')
             message_text = request.form.get('message_text')
@@ -409,8 +331,6 @@ def broadcast():
         gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
         channels_list = db.query(Channel).filter(Channel.is_active == True).all()
         return render_template('broadcast_dark.html', gunpacks=gunpacks_list, channels=channels_list)
-    finally:
-        db.close()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
