@@ -246,6 +246,10 @@ def broadcast():
         db.close()
 
 # Добавь @login_required и @admin_required к остальным роутам (delete, toggle, channels) по аналогии.
+@app.route('/admin/cleanup')
+@login_required
+def cleanup_database():
+    return "Функция очистки базы в разработке"
 @app.route('/export/xml')
 @login_required
 def export_users_xml():
