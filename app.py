@@ -1,13 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, Response, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, jsonify, session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
 import json
+import hmac
+import hashlib
 from datetime import datetime
 import config
 from database import get_db, User, Gunpack, Download, Channel, init_default_channels
 import os
 import asyncio
 from functools import wraps
+from urllib.parse import parse_qsl
 
 # --- 1. Инициализация приложения ---
 app = Flask(__name__, static_folder='static')
@@ -38,6 +41,30 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# --- Вспомогательная функция для Telegram Auth ---
+def verify_telegram_data(init_data):
+    try:
+        # Разбираем строку параметров от Telegram
+        vals = dict(parse_qsl(init_data))
+        if 'hash' not in vals:
+            return None
+        
+        hash_str = vals.pop('hash')
+        # Собираем строку для проверки (ключи должны быть отсортированы)
+        data_check_string = "\n".join([f"{k}={v}" for k, v in sorted(vals.items())])
+        
+        # Вычисляем секретный ключ на основе токена бота
+        secret_key = hmac.new(b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256).digest()
+        # Считаем HMAC и сравниваем с полученным хешем
+        hmac_check = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        
+        if hmac_check == hash_str:
+            return json.loads(vals.get('user'))
+        return None
+    except Exception as e:
+        print(f"Auth error: {e}")
+        return None
+
 # --- 3. Авторизация ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -56,6 +83,30 @@ def login():
         finally:
             db.close()
     return render_template('login_dark.html')
+
+@app.route('/auth-tg', methods=['POST'])
+def auth_tg():
+    """Эндпоинт для автоматического входа через Telegram Mini App"""
+    data = request.json
+    init_data = data.get('initData')
+    
+    user_info = verify_telegram_data(init_data)
+    
+    if user_info:
+        tg_id = str(user_info.get('id'))
+        db = get_db()
+        try:
+            # Ищем пользователя по telegram_id
+            user = db.query(User).filter(User.telegram_id == tg_id).first()
+            # Проверяем, что пользователь существует и он админ
+            if user and user.role == 'admin':
+                login_user(user)
+                return jsonify({"success": True})
+            return jsonify({"success": False, "message": "Access denied"}), 403
+        finally:
+            db.close()
+    
+    return jsonify({"success": False, "message": "Invalid data"}), 400
 
 @app.route('/logout')
 @login_required
@@ -212,7 +263,6 @@ def edit_gunpack(id):
 def channels():
     db = get_db()
     try:
-        # Оставляем POST здесь только если ты добавляешь каналы через модалку на главной странице каналов
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             title = request.form.get('title', '').strip()
@@ -229,6 +279,7 @@ def channels():
         return render_template('channels_dark.html', channels=channels_list)
     finally:
         db.close()
+
 @app.route('/channels/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
@@ -309,7 +360,6 @@ def new_channel():
         finally:
             db.close()
             
-    # Если это GET запрос — просто показываем форму
     return render_template('channel_form_dark.html', channel=None)
 
 @app.route('/channels/<int:id>/toggle', methods=['POST'])
@@ -384,7 +434,6 @@ def export_users_xml():
     db = get_db()
     try:
         users_list = db.query(User).all()
-        # Формируем XML в виде красивого нумерованного списка
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n<users>\n'
         for index, u in enumerate(users_list, start=1):
             xml += f'  <user number="{index}">\n'
