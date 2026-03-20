@@ -289,21 +289,38 @@ def delete_user(id):
         return redirect(url_for('users'))
 
 # --- 8. Функции экспорта и очистки (Заглушки от BuildError) ---
+# --- 8. Функции экспорта и очистки (Исправлено для шаблона) ---
+
 @app.route('/admin/export/xml')
+@login_required
+@admin_required
+def export_users_xml():
+    flash('Экспорт XML временно недоступен', 'info')
+    return redirect(url_for('dashboard'))
+
 @app.route('/admin/export/csv')
 @login_required
 @admin_required
-def export_stub():
-    flash('Эта функция временно отключена.', 'info')
+def export_users_csv():
+    flash('Экспорт CSV временно недоступен', 'info')
     return redirect(url_for('dashboard'))
 
 @app.route('/admin/cleanup-database')
 @login_required
 @admin_required
 def cleanup_database():
-    flash('Очистка БД запрещена.', 'error')
+    flash('Очистка базы данных запрещена в целях безопасности', 'error')
     return redirect(url_for('dashboard'))
 
+# Если вдруг в шаблоне есть ссылка на экспорт JSON
+@app.route('/admin/export/json')
+@login_required
+@admin_required
+def export_users_json():
+    with get_db() as db:
+        users_list = db.query(User).all()
+        data = [{"id": u.id, "tg_id": u.telegram_id, "username": u.username} for u in users_list]
+        return jsonify(data)
 # --- 9. Рассылка ---
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
