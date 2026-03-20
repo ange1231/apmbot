@@ -18,6 +18,9 @@ app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['DEBUG'] = True
 
+# ТВОЙ ID ДЛЯ ПРОВЕРКИ АДМИНКИ
+ADMIN_ID = 6211527632 
+
 # --- 2. Настройка безопасности ---
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
@@ -37,25 +40,21 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'admin':
             flash('У вас нет прав для доступа к этой странице.', 'error')
-            return redirect(url_for('login'))
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
 # --- Вспомогательная функция для Telegram Auth ---
 def verify_telegram_data(init_data):
     try:
-        # Разбираем строку параметров от Telegram
         vals = dict(parse_qsl(init_data))
         if 'hash' not in vals:
             return None
         
         hash_str = vals.pop('hash')
-        # Собираем строку для проверки (ключи должны быть отсортированы)
         data_check_string = "\n".join([f"{k}={v}" for k, v in sorted(vals.items())])
         
-        # Вычисляем секретный ключ на основе токена бота
         secret_key = hmac.new(b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256).digest()
-        # Считаем HMAC и сравниваем с полученным хешем
         hmac_check = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         
         if hmac_check == hash_str:
@@ -91,33 +90,39 @@ def auth_tg():
     user_info = verify_telegram_data(init_data)
     
     if user_info:
-        tg_id = str(user_info.get('id'))
+        tg_id_int = user_info.get('id')
+        tg_id_str = str(tg_id_int)
         db = get_db()
         try:
-            # 1. Ищем пользователя
-            user = db.query(User).filter(User.telegram_id == tg_id).first()
+            # Ищем пользователя
+            user = db.query(User).filter(User.telegram_id == tg_id_str).first()
             
-            # 2. Если пользователя нет или он не админ — ПРИНУДИТЕЛЬНО исправляем это
+            # Определяем, какую роль должен иметь этот пользователь
+            target_role = 'admin' if tg_id_int == ADMIN_ID else 'user'
+            
             if not user:
-                # Если тебя нет в базе, создаем
+                # Если пользователя нет — создаем с правильной ролью
                 user = User(
-                    telegram_id=tg_id, 
-                    username=user_info.get('username', 'Admin'), 
-                    role='admin'
+                    telegram_id=tg_id_str, 
+                    username=user_info.get('username', f"User_{tg_id_str}"), 
+                    role=target_role,
+                    created_at=datetime.utcnow()
                 )
                 db.add(user)
                 db.commit()
-           # elif user.role != 'admin':
-                # Если ты есть, но не админ — даем права
-              #  user.role = 'admin'
-              #  db.commit()
+                db.refresh(user)
+            else:
+                # Если пользователь есть, но роль не совпадает (например, ты зашел как user)
+                # Исправляем роль в базе данных автоматически
+                if user.role != target_role:
+                    user.role = target_role
+                    db.commit()
 
-            # 3. Теперь логиним
             login_user(user)
             return jsonify({"success": True})
         except Exception as e:
             print(f"Database error: {e}")
-            return jsonify({"success": False}), 500
+            return jsonify({"success": False, "error": str(e)}), 500
         finally:
             db.close()
     
@@ -139,14 +144,12 @@ def index():
 def dashboard():
     db = get_db()
     try:
-        # Общие данные для обоих дашбордов
         users_count = db.query(User).count()
         gunpacks_count = db.query(Gunpack).count()
         channels_count = db.query(Channel).count()
         total_downloads = db.query(Download).count()
 
         if current_user.role == 'admin':
-            # Доп. данные только для админа
             recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
             recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
             
@@ -158,7 +161,6 @@ def dashboard():
                                    recent_users=recent_users,
                                    recent_downloads=recent_downloads)
         else:
-            # Дашборд для обычного пользователя
             return render_template('user_dashboard.html', 
                                    users_count=users_count,
                                    gunpacks_count=gunpacks_count,
@@ -196,10 +198,10 @@ def statistics():
 # --- 5. Управление Ганпаками ---
 @app.route('/gunpacks')
 @login_required
-@admin_required
 def gunpacks():
     db = get_db()
     try:
+        # Теперь страницу видят все, но контент в шаблоне (который мы правили ранее) фильтруется по роли
         gunpacks_list = db.query(Gunpack).order_by(Gunpack.created_at.desc()).all()
         return render_template('gunpacks_dark_fixed.html', gunpacks=gunpacks_list)
     finally:
@@ -321,85 +323,6 @@ def delete_channel(id):
         db.close()
     return redirect(url_for('channels'))
 
-@app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_channel(id):
-    db = get_db()
-    try:
-        channel = db.query(Channel).get(id)
-        if not channel:
-            flash('Канал не найден!', 'error')
-            return redirect(url_for('channels'))
-        
-        if request.method == 'POST':
-            channel.name = request.form.get('name', '').strip()
-            channel.title = request.form.get('title', '').strip()
-            channel.description = request.form.get('description', '')
-            if channel.name and not channel.name.startswith('@') and not channel.name.startswith('-100'):
-                channel.name = '@' + channel.name
-            db.commit()
-            flash('Канал успешно обновлен!', 'success')
-            return redirect(url_for('channels'))
-        
-        return render_template('channel_form_dark.html', channel=channel)
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка: {e}', 'error')
-        return redirect(url_for('channels'))
-    finally:
-        db.close()
-
-@app.route('/channels/new', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def new_channel():
-    if request.method == 'POST':
-        db = get_db()
-        try:
-            name = request.form.get('name', '').strip()
-            title = request.form.get('title', '').strip()
-            description = request.form.get('description', '')
-            is_active = 'is_active' in request.form
-            
-            if name and title:
-                if not name.startswith('@') and not name.startswith('-100'):
-                    name = '@' + name
-                
-                new_ch = Channel(
-                    name=name, 
-                    title=title, 
-                    description=description, 
-                    is_active=is_active
-                )
-                db.add(new_ch)
-                db.commit()
-                flash('Канал успешно создан!', 'success')
-                return redirect(url_for('channels'))
-            else:
-                flash('Заполните обязательные поля!', 'error')
-        except Exception as e:
-            db.rollback()
-            flash(f'Ошибка: {e}', 'error')
-        finally:
-            db.close()
-            
-    return render_template('channel_form_dark.html', channel=None)
-
-@app.route('/channels/<int:id>/toggle', methods=['POST'])
-@login_required
-@admin_required
-def toggle_channel(id):
-    db = get_db()
-    try:
-        ch = db.query(Channel).get(id)
-        if ch:
-            ch.is_active = not ch.is_active
-            db.commit()
-    finally:
-        db.close()
-    return redirect(url_for('channels'))
-
 # --- 7. Управление Пользователями ---
 @app.route('/users/<int:id>/delete', methods=['POST'])
 @login_required
@@ -409,9 +332,12 @@ def delete_user(id):
     try:
         user = db.query(User).get(id)
         if user:
-            db.delete(user)
-            db.commit()
-            flash('Пользователь удален', 'success')
+            if int(user.telegram_id) == ADMIN_ID:
+                flash('Нельзя удалить главного администратора!', 'error')
+            else:
+                db.delete(user)
+                db.commit()
+                flash('Пользователь удален', 'success')
     finally:
         db.close()
     return redirect(url_for('users'))
@@ -426,52 +352,19 @@ def edit_user(id):
         if not user:
             return redirect(url_for('users'))
         if request.method == 'POST':
-            user.role = request.form.get('role', 'user')
-            db.commit()
-            flash('Данные пользователя обновлены', 'success')
+            # Запрещаем менять роль самому себе через панель, чтобы не потерять доступ
+            if int(user.telegram_id) == ADMIN_ID:
+                flash('Роль главного администратора нельзя изменить.', 'error')
+            else:
+                user.role = request.form.get('role', 'user')
+                db.commit()
+                flash('Данные пользователя обновлены', 'success')
             return redirect(url_for('users'))
         return render_template('user_form_dark.html', user=user)
     finally:
         db.close()
 
 # --- 8. Сервисные функции ---
-@app.route('/admin/cleanup', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def cleanup_database():
-    db = get_db()
-    try:
-        db.query(User).filter(User.username == None).delete()
-        db.commit()
-        flash('База данных оптимизирована', 'success')
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка очистки: {e}', 'error')
-    finally:
-        db.close()
-    return redirect(url_for('dashboard'))
-
-@app.route('/export/xml')
-@login_required
-@admin_required
-def export_users_xml():
-    db = get_db()
-    try:
-        users_list = db.query(User).all()
-        xml = '<?xml version="1.0" encoding="UTF-8"?>\n<users>\n'
-        for index, u in enumerate(users_list, start=1):
-            xml += f'  <user number="{index}">\n'
-            xml += f'    <id>{u.id}</id>\n'
-            xml += f'    <username>{u.username or "N/A"}</username>\n'
-            xml += f'    <telegram_id>{u.telegram_id or "N/A"}</telegram_id>\n'
-            xml += f'    <role>{u.role}</role>\n'
-            xml += f'  </user>\n'
-        xml += '</users>'
-        return Response(xml, mimetype='application/xml', 
-                        headers={'Content-Disposition': 'attachment;filename=users_list.xml'})
-    finally:
-        db.close()
-
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
 @admin_required
