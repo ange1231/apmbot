@@ -103,7 +103,7 @@ a:hover { color: var(--white); }
   bottom: 0;
   width: 260px;
   background: var(--bg-2);
-  border-right: 1px dashed var(--border);
+  border-right: 1px solid var(--border);
   z-index: 1050;
   display: flex;
   flex-direction: column;
@@ -142,14 +142,14 @@ a:hover { color: var(--white); }
   align-items: center;
   gap: 10px;
   padding: 1.4rem 1.2rem 1.2rem;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-logo img {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px dashed var(--border-h);
+  border: 1px solid var(--border-h);
   object-fit: cover;
 }
 
@@ -204,7 +204,7 @@ a:hover { color: var(--white); }
 .sidebar .nav-link.active {
   color: var(--white);
   background: var(--surface-2);
-  border: 1px dashed rgba(255,255,255,0.28);
+  border: 1px solid rgba(255,255,255,0.28);
   font-weight: 800;
 }
 
@@ -212,7 +212,7 @@ a:hover { color: var(--white); }
 
 .sidebar-divider {
   border: none;
-  border-top: 1px dashed var(--border);
+  border-top: 1px solid var(--border);
   margin: 0.8rem 1rem;
 }
 
@@ -251,7 +251,7 @@ a:hover { color: var(--white); }
   align-items: center;
   justify-content: space-between;
   padding: 0.8rem 1rem;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px solid var(--border);
   background: var(--bg);
   position: sticky;
   top: 0;
@@ -292,7 +292,7 @@ a:hover { color: var(--white); }
   display: flex;
   align-items: center;
   gap: 7px;
-  border: 1px dashed var(--border-h);
+  border: 1px solid var(--border-h);
   border-radius: var(--radius-full);
   padding: 4px 10px 4px 4px;
 }
@@ -301,7 +301,7 @@ a:hover { color: var(--white); }
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
 }
 
 .user-pill-name {
@@ -320,7 +320,7 @@ a:hover { color: var(--white); }
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: var(--radius-full);
-  border: 1px dashed var(--border-h);
+  border: 1px solid var(--border-h);
   color: var(--text-muted);
   display: none;
 }
@@ -410,7 +410,7 @@ a:hover { color: var(--white); }
    ═══════════════════════════════ */
 .glass-card {
   background: var(--surface);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   transition: border-color 0.2s;
@@ -423,7 +423,7 @@ a:hover { color: var(--white); }
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px solid var(--border);
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -446,7 +446,7 @@ a:hover { color: var(--white); }
    ═══════════════════════════════ */
 .stat-card {
   background: var(--surface);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
   display: flex;
@@ -467,7 +467,7 @@ a:hover { color: var(--white); }
   height: 40px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -509,7 +509,7 @@ a:hover { color: var(--white); }
   letter-spacing: 0.14em;
   color: var(--text-muted);
   padding: 0.5rem 0.9rem;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px solid var(--border);
   background: transparent;
   white-space: nowrap;
   text-align: left;
@@ -526,7 +526,7 @@ a:hover { color: var(--white); }
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
-  border-bottom: 1px dashed rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
   vertical-align: middle;
 }
 
@@ -546,7 +546,7 @@ a:hover { color: var(--white); }
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  border: 1px dashed;
+  border: 1px solid;
 }
 
 .apm-badge-active   { border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.8); }
@@ -571,7 +571,7 @@ a:hover { color: var(--white); }
 .form-control,
 .form-select {
   background: rgba(0,0,0,0.4) !important;
-  border: 1px dashed var(--border-h) !important;
+  border: 1px solid var(--border-h) !important;
   border-radius: var(--radius-md) !important;
   color: var(--white) !important;
   font-family: var(--font);
@@ -615,7 +615,7 @@ textarea.form-control {
   height: 16px;
   flex-shrink: 0;
   background: transparent !important;
-  border: 1.5px dashed rgba(255,255,255,0.3) !important;
+  border: 1.5px solid rgba(255,255,255,0.3) !important;
   border-radius: 4px !important;
   margin-top: 2px;
   cursor: pointer;
@@ -663,7 +663,7 @@ textarea.form-control {
   font-size: 12px;
   font-weight: 700;
   margin-bottom: 1rem;
-  border: 1px dashed;
+  border: 1px solid;
   color: var(--white);
 }
 
@@ -679,7 +679,7 @@ textarea.form-control {
   align-items: flex-start;
   gap: 10px;
   padding: 0.65rem 0;
-  border-bottom: 1px dashed rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 
 .activity-item:last-child { border-bottom: none; }
@@ -689,7 +689,7 @@ textarea.form-control {
   height: 32px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -731,7 +731,7 @@ textarea.form-control {
   overflow-y: auto;
   padding: 0.75rem;
   background: rgba(0,0,0,0.3);
-  border: 1px dashed var(--border-h);
+  border: 1px solid var(--border-h);
   border-radius: var(--radius-md);
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.1) transparent;
@@ -753,7 +753,7 @@ textarea.form-control {
   width: 100%;
   max-width: 360px;
   background: var(--surface);
-  border: 1px dashed var(--border-h);
+  border: 1px solid var(--border-h);
   border-radius: var(--radius-lg);
   padding: 2rem 1.5rem;
 }
@@ -770,7 +770,7 @@ textarea.form-control {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  border: 1.5px dashed var(--border-h);
+  border: 1.5px solid var(--border-h);
   margin-bottom: 0.9rem;
   object-fit: cover;
 }
@@ -804,7 +804,7 @@ textarea.form-control {
 .spinner-ring {
   width: 28px;
   height: 28px;
-  border: 2px dashed rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.15);
   border-top-color: rgba(255,255,255,0.55);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
@@ -833,7 +833,7 @@ textarea.form-control {
   height: 32px;
   border-radius: 50%;
   background: transparent;
-  border: 1.5px dashed rgba(255,255,255,0.25);
+  border: 1.5px solid rgba(255,255,255,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
