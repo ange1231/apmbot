@@ -86,27 +86,42 @@ def login():
 
 @app.route('/auth-tg', methods=['POST'])
 def auth_tg():
-    """Эндпоинт для автоматического входа через Telegram Mini App"""
     data = request.json
     init_data = data.get('initData')
-    
     user_info = verify_telegram_data(init_data)
     
     if user_info:
         tg_id = str(user_info.get('id'))
         db = get_db()
         try:
-            # Ищем пользователя по telegram_id
+            # 1. Ищем пользователя
             user = db.query(User).filter(User.telegram_id == tg_id).first()
-            # Проверяем, что пользователь существует и он админ
-            if user and user.role == 'admin':
-                login_user(user)
-                return jsonify({"success": True})
-            return jsonify({"success": False, "message": "Access denied"}), 403
+            
+            # 2. Если пользователя нет или он не админ — ПРИНУДИТЕЛЬНО исправляем это
+            if not user:
+                # Если тебя нет в базе, создаем
+                user = User(
+                    telegram_id=tg_id, 
+                    username=user_info.get('username', 'Admin'), 
+                    role='admin'
+                )
+                db.add(user)
+                db.commit()
+            elif user.role != 'admin':
+                # Если ты есть, но не админ — даем права
+                user.role = 'admin'
+                db.commit()
+
+            # 3. Теперь логиним
+            login_user(user)
+            return jsonify({"success": True})
+        except Exception as e:
+            print(f"Database error: {e}")
+            return jsonify({"success": False}), 500
         finally:
             db.close()
     
-    return jsonify({"success": False, "message": "Invalid data"}), 400
+    return jsonify({"success": False}), 400
 
 @app.route('/logout')
 @login_required
