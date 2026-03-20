@@ -94,14 +94,10 @@ def auth_tg():
         tg_id_str = str(tg_id_int)
         db = get_db()
         try:
-            # Ищем пользователя
             user = db.query(User).filter(User.telegram_id == tg_id_str).first()
-            
-            # Определяем, какую роль должен иметь этот пользователь
             target_role = 'admin' if tg_id_int == ADMIN_ID else 'user'
             
             if not user:
-                # Если пользователя нет — создаем с правильной ролью
                 user = User(
                     telegram_id=tg_id_str, 
                     username=user_info.get('username', f"User_{tg_id_str}"), 
@@ -112,8 +108,6 @@ def auth_tg():
                 db.commit()
                 db.refresh(user)
             else:
-                # Если пользователь есть, но роль не совпадает (например, ты зашел как user)
-                # Исправляем роль в базе данных автоматически
                 if user.role != target_role:
                     user.role = target_role
                     db.commit()
@@ -179,6 +173,31 @@ def users():
     finally:
         db.close()
 
+# Исправление ошибки BuildError: Добавляем функции экспорта
+@app.route('/admin/export/xml')
+@login_required
+@admin_required
+def export_users_xml():
+    return "Функция экспорта XML находится в разработке", 200
+
+@app.route('/admin/export/csv')
+@login_required
+@admin_required
+def export_users_csv():
+    return "Функция экспорта CSV находится в разработке", 200
+
+@app.route('/admin/export/json')
+@login_required
+@admin_required
+def export_users_json():
+    db = get_db()
+    try:
+        users_list = db.query(User).all()
+        data = [{"id": u.id, "tg_id": u.telegram_id, "username": u.username, "role": u.role} for u in users_list]
+        return jsonify(data)
+    finally:
+        db.close()
+
 @app.route('/statistics')
 @login_required
 @admin_required
@@ -201,7 +220,6 @@ def statistics():
 def gunpacks():
     db = get_db()
     try:
-        # Теперь страницу видят все, но контент в шаблоне (который мы правили ранее) фильтруется по роли
         gunpacks_list = db.query(Gunpack).order_by(Gunpack.created_at.desc()).all()
         return render_template('gunpacks_dark_fixed.html', gunpacks=gunpacks_list)
     finally:
@@ -352,7 +370,6 @@ def edit_user(id):
         if not user:
             return redirect(url_for('users'))
         if request.method == 'POST':
-            # Запрещаем менять роль самому себе через панель, чтобы не потерять доступ
             if int(user.telegram_id) == ADMIN_ID:
                 flash('Роль главного администратора нельзя изменить.', 'error')
             else:
