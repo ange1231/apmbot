@@ -257,7 +257,29 @@ def delete_channel(id):
             db.commit()
             flash('Канал удален', 'success')
         return redirect(url_for('channels'))
-
+@app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_channel(id):
+    with get_db() as db:
+        channel = db.query(Channel).get(id)
+        if not channel:
+            flash('Канал не найден', 'error')
+            return redirect(url_for('channels'))
+        
+        if request.method == 'POST':
+            channel.name = request.form.get('name', '').strip()
+            channel.title = request.form.get('title', '').strip()
+            
+            # Если название не начинается с @ или -100, добавляем @
+            if channel.name and not channel.name.startswith('@') and not channel.name.startswith('-100'):
+                channel.name = '@' + channel.name
+                
+            db.commit()
+            flash('Канал успешно обновлен', 'success')
+            return redirect(url_for('channels'))
+            
+        return render_template('channel_form_dark.html', channel=channel)
 # --- 7. Управление Пользователями ---
 @app.route('/users/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
