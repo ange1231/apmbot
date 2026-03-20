@@ -237,7 +237,31 @@ def delete_channel(id):
     finally:
         db.close()
     return redirect(url_for('channels'))
+# --- Добавь это в секцию 6 (Управление Каналами) ---
 
+@app.route('/channels/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_channel():
+    """Эндпоинт для создания нового канала (если шаблон требует отдельную страницу)"""
+    # Если в твоем шаблоне создание идет через модалку на странице /channels, 
+    # то этот роут может просто перенаправлять назад или открывать форму.
+    return redirect(url_for('channels'))
+
+@app.route('/channels/<int:id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_channel(id):
+    """Переключение активности канала"""
+    db = get_db()
+    try:
+        ch = db.query(Channel).get(id)
+        if ch:
+            ch.is_active = not ch.is_active
+            db.commit()
+    finally:
+        db.close()
+    return redirect(url_for('channels'))
 # --- 7. Сервисные функции ---
 @app.route('/admin/cleanup', methods=['GET', 'POST'])
 @login_required
