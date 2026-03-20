@@ -39,46 +39,50 @@
                 </thead>
                 <tbody>
                     {% for gunpack in gunpacks %}
-                    <tr class="gunpack-item-dark">
-                        {% if current_user.role == 'admin' %}
-                        <td class="text-white small">{{ gunpack.id }}</td>
-                        {% endif %}
-                        <td class="text-white font-weight-bold">{{ gunpack.name }}</td>
-                        <td class="text-muted small">
-                            {{ gunpack.description[:50] }}{% if gunpack.description|length > 50 %}...{% endif %}
-                        </td>
-                        <td>
-                            {% if gunpack.is_active %}
-                                <span class="badge bg-success text-white">Активен</span>
-                            {% else %}
-                                <span class="badge bg-secondary text-white">Неактивен</span>
-                            {% endif %}
-                        </td>
-                        {% if current_user.role == 'admin' %}
-                        <td class="text-muted small">{{ gunpack.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                        {% endif %}
-                        <td class="text-center">
+                        {# Обычный юзер видит только активные, админ видит все #}
+                        {% if current_user.role == 'admin' or gunpack.is_active %}
+                        <tr class="gunpack-item-dark">
                             {% if current_user.role == 'admin' %}
-                                <div class="btn-group">
-                                    <a href="{{ url_for('edit_gunpack', id=gunpack.id) }}" class="btn btn-info-dark btn-sm me-1" title="Редактировать">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <form method="POST" action="{{ url_for('delete_gunpack', id=gunpack.id) }}" style="display: inline;" onsubmit="return confirm('Удалить ганпак?')">
-                                        <button type="submit" class="btn btn-danger-dark btn-sm" title="Удалить">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            {% else %}
-                                <a href="{{ gunpack.download_url }}" class="btn btn-primary-dark btn-sm px-3" target="_blank">
-                                    <i class="fas fa-download me-1"></i> Скачать
-                                </a>
+                            <td class="text-white small">{{ gunpack.id }}</td>
                             {% endif %}
-                        </td>
-                    </tr>
+                            <td class="text-white font-weight-bold">{{ gunpack.name }}</td>
+                            <td class="text-muted small">
+                                {{ gunpack.description[:50] }}{% if gunpack.description|length > 50 %}...{% endif %}
+                            </td>
+                            <td>
+                                {% if gunpack.is_active %}
+                                    <span class="badge bg-success text-white">Активен</span>
+                                {% else %}
+                                    <span class="badge bg-secondary text-white">Неактивен</span>
+                                {% endif %}
+                            </td>
+                            {% if current_user.role == 'admin' %}
+                            <td class="text-muted small">{{ gunpack.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            {% endif %}
+                            <td class="text-center">
+                                {% if current_user.role == 'admin' %}
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('edit_gunpack', id=gunpack.id) }}" class="btn btn-info-dark btn-sm me-1" title="Редактировать">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('delete_gunpack', id=gunpack.id) }}" style="display: inline;" onsubmit="return confirm('Удалить ганпак?')">
+                                            <button type="submit" class="btn btn-danger-dark btn-sm" title="Удалить">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    {# Кнопка скачивания для юзера #}
+                                    <a href="{{ gunpack.download_url }}" class="btn btn-primary-dark btn-sm px-4 shadow-sm" target="_blank">
+                                        <i class="fas fa-download me-2"></i>Скачать
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">Ганпаки пока не добавлены.</td>
+                        <td colspan="{% if current_user.role == 'admin' %}6{% else %}4{% endif %}" class="text-center text-muted py-4">Ганпаки пока не добавлены.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -96,15 +100,24 @@
         background-color: transparent;
         border-color: #3d3e48;
     }
+    /* Стили для кнопок, чтобы они не были прозрачными */
     .btn-info-dark {
-        background-color: #36b9cc;
+        background-color: #36b9cc !important;
         border: none;
-        color: white;
+        color: white !important;
     }
     .btn-danger-dark {
-        background-color: #e74a3b;
+        background-color: #e74a3b !important;
         border: none;
-        color: white;
+        color: white !important;
+    }
+    .btn-primary-dark {
+        background-color: #4e73df !important;
+        border: none;
+        color: white !important;
+    }
+    .btn-sm i {
+        color: white !important;
     }
 </style>
 {% endblock %}
