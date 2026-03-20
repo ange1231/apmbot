@@ -1,8 +1,10 @@
 {% extends "base_dark.html" %}
 
-{% block title %}Главная - Админ панель{% endblock %}
+{% block title %}Главная - APM Panel{% endblock %}
 
-{% block header %}Главная панель{% endblock %}
+{% block header %}
+    {% if current_user.role == 'admin' %}Админ панель{% else %}Статистика проекта{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -12,9 +14,9 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Пользователи
+                            Нам доверяют
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-white">{{ users_count }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ users_count }} чел.</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-users fa-2x text-info"></i>
@@ -30,7 +32,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Активные ганпаки
+                            Ганпаков в базе
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-white">{{ gunpacks_count }}</div>
                     </div>
@@ -48,7 +50,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Активные каналы
+                            Наши ресурсы
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-white">{{ channels_count }}</div>
                     </div>
@@ -79,11 +81,12 @@
     </div>
 </div>
 
+{% if current_user.role == 'admin' %}
 <div class="row">
     <div class="col-lg-6 mb-4">
         <div class="card card-dark border-0 shadow-lg">
             <div class="card-header bg-dark border-secondary">
-                <h6 class="m-0 font-weight-bold text-white">Последние пользователи</h6>
+                <h6 class="m-0 font-weight-bold text-white">Последние пользователи (Админ)</h6>
             </div>
             <div class="card-body bg-dark">
                 {% if recent_users %}
@@ -93,7 +96,7 @@
                             <i class="fas fa-user-circle fa-2x text-info"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold text-white">{{ user.first_name }} {{ user.last_name }}</div>
+                            <div class="fw-bold text-white">{{ user.first_name or 'Пользователь' }} {{ user.last_name or '' }}</div>
                             <div class="text-muted small">@{{ user.username or 'N/A' }} • ID: {{ user.telegram_id }}</div>
                             <div class="text-muted small">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
                         </div>
@@ -119,8 +122,8 @@
                             <i class="fas fa-download fa-2x text-success"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <div class="fw-bold text-white">{{ download.user.first_name }}</div>
-                            <div class="text-muted small">{{ download.gunpack.name }}</div>
+                            <div class="fw-bold text-white">{{ download.user.first_name if download.user else 'System' }}</div>
+                            <div class="text-muted small">{{ download.gunpack.name if download.gunpack else 'Unknown Pack' }}</div>
                             <div class="text-muted small">{{ download.downloaded_at.strftime('%d.%m.%Y %H:%M') }}</div>
                         </div>
                     </div>
@@ -141,44 +144,27 @@
             </div>
             <div class="card-body bg-dark">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('channels') }}" class="btn btn-info-dark w-100">
-                            <i class="fas fa-broadcast-tower me-2"></i>Управление каналами
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('new_gunpack') }}" class="btn btn-primary-dark w-100">
-                            <i class="fas fa-plus me-2"></i>Добавить ганпак
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('export_users_xml') }}" class="btn btn-success-dark w-100">
-                            <i class="fas fa-file-export me-2"></i>Экспорт пользователей (XML)
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('statistics') }}" class="btn btn-warning-dark w-100">
-                            <i class="fas fa-chart-bar me-2"></i>Статистика
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('gunpacks') }}" class="btn btn-secondary-dark w-100">
-                            <i class="fas fa-box me-2"></i>Управление ганпаками
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('cleanup_database') }}" class="btn btn-danger-dark w-100" onclick="return confirm('Очистить базу данных от осиротевших записей?')">
-                            <i class="fas fa-trash-alt me-2"></i>Очистить БД
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('broadcast') }}" class="btn btn-primary-dark w-100">
-                            <i class="fas fa-paper-plane me-2"></i>Рассылка в ТГ
-                        </a>
-                    </div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('channels') }}" class="btn btn-info-dark w-100"><i class="fas fa-broadcast-tower me-2"></i>Каналы</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('new_gunpack') }}" class="btn btn-primary-dark w-100"><i class="fas fa-plus me-2"></i>Добавить ганпак</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('export_users_xml') }}" class="btn btn-success-dark w-100"><i class="fas fa-file-export me-2"></i>Экспорт (XML)</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('statistics') }}" class="btn btn-warning-dark w-100"><i class="fas fa-chart-bar me-2"></i>Статистика</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('gunpacks') }}" class="btn btn-secondary-dark w-100"><i class="fas fa-box me-2"></i>Ганпаки</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('cleanup_database') }}" class="btn btn-danger-dark w-100" onclick="return confirm('Очистить БД?')"><i class="fas fa-trash-alt me-2"></i>Очистить БД</a></div>
+                    <div class="col-md-3 mb-3"><a href="{{ url_for('broadcast') }}" class="btn btn-primary-dark w-100"><i class="fas fa-paper-plane me-2"></i>Рассылка</a></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% else %}
+<div class="row mt-2">
+    <div class="col-12">
+        <div class="card card-dark border-0 shadow-lg text-center p-5">
+            <i class="fas fa-shield-alt fa-3x text-info mb-3"></i>
+            <h4 class="text-white">Добро пожаловать в APM Panel</h4>
+            <p class="text-muted">Вы авторизованы как пользователь. Выше представлена общая статистика нашего проекта.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
