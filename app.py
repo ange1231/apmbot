@@ -139,34 +139,30 @@ def index():
 def dashboard():
     db = get_db()
     try:
-        # Общие данные (доступны всем)
+        # Общие данные для обоих дашбордов
         users_count = db.query(User).count()
+        gunpacks_count = db.query(Gunpack).count()
+        channels_count = db.query(Channel).count()
         total_downloads = db.query(Download).count()
-        
-        # Статистика по ганпакам (доступна всем)
-        gunpacks = db.query(Gunpack).all()
-        gunpack_stats = []
-        for gp in gunpacks:
-            count = db.query(Download).filter(Download.gunpack_id == gp.id).count()
-            gunpack_stats.append({
-                'name': gp.name,
-                'downloads': count,
-                'image': gp.image_url
-            })
 
-        # Данные только для админа
-        recent_users = []
-        recent_downloads = []
         if current_user.role == 'admin':
+            # Доп. данные только для админа
             recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
             recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
-
-        return render_template('dashboard_dark.html', 
-                               users_count=users_count,
-                               total_downloads=total_downloads,
-                               gunpack_stats=gunpack_stats,
-                               recent_users=recent_users,
-                               recent_downloads=recent_downloads)
+            
+            return render_template('dashboard_dark.html', 
+                                   users_count=users_count,
+                                   gunpacks_count=gunpacks_count,
+                                   channels_count=channels_count,
+                                   total_downloads=total_downloads,
+                                   recent_users=recent_users,
+                                   recent_downloads=recent_downloads)
+        else:
+            # Дашборд для обычного пользователя
+            return render_template('user_dashboard.html', 
+                                   users_count=users_count,
+                                   gunpacks_count=gunpacks_count,
+                                   total_downloads=total_downloads)
     finally:
         db.close()
 
