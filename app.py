@@ -81,7 +81,13 @@ def dashboard():
         total_downloads = db.query(Download).count()
         recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
         recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
-        return render_template('dashboard_dark.html', **locals())
+        return render_template('dashboard_dark.html', 
+                               users_count=users_count,
+                               gunpacks_count=gunpacks_count,
+                               channels_count=channels_count,
+                               total_downloads=total_downloads,
+                               recent_users=recent_users,
+                               recent_downloads=recent_downloads)
     finally:
         db.close()
 
@@ -141,6 +147,7 @@ def delete_gunpack(id):
     finally:
         db.close()
     return redirect(url_for('gunpacks'))
+
 @app.route('/gunpacks/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -197,6 +204,7 @@ def edit_gunpack(id):
         return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
     finally:
         db.close()
+
 # --- 6. Управление Каналами ---
 @app.route('/channels', methods=['GET', 'POST'])
 @login_required
@@ -237,6 +245,7 @@ def delete_channel(id):
     finally:
         db.close()
     return redirect(url_for('channels'))
+
 @app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -249,22 +258,15 @@ def edit_channel(id):
             return redirect(url_for('channels'))
         
         if request.method == 'POST':
-            # Обновляем данные из формы
             channel.name = request.form.get('name', '').strip()
             channel.title = request.form.get('title', '').strip()
             channel.description = request.form.get('description', '')
-            
-            # Авто-исправление @
             if channel.name and not channel.name.startswith('@') and not channel.name.startswith('-100'):
                 channel.name = '@' + channel.name
-                
             db.commit()
             flash('Канал успешно обновлен!', 'success')
             return redirect(url_for('channels'))
         
-        # Если GET — показываем ту же форму, что и для создания, но с данными канала
-        # Убедись, что файл channel_form_dark.html существует, 
-        # либо используй существующий шаблон для редактирования
         return render_template('channel_form_dark.html', channel=channel)
     except Exception as e:
         db.rollback()
@@ -277,16 +279,12 @@ def edit_channel(id):
 @login_required
 @admin_required
 def new_channel():
-    """Эндпоинт для создания нового канала (если шаблон требует отдельную страницу)"""
-    # Если в твоем шаблоне создание идет через модалку на странице /channels, 
-    # то этот роут может просто перенаправлять назад или открывать форму.
     return redirect(url_for('channels'))
 
 @app.route('/channels/<int:id>/toggle', methods=['POST'])
 @login_required
 @admin_required
 def toggle_channel(id):
-    """Переключение активности канала"""
     db = get_db()
     try:
         ch = db.query(Channel).get(id)
@@ -296,14 +294,48 @@ def toggle_channel(id):
     finally:
         db.close()
     return redirect(url_for('channels'))
-# --- 7. Сервисные функции ---
+
+# --- 7. Управление Пользователями (Исправление BuildError) ---
+@app.route('/users/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(id):
+    db = get_db()
+    try:
+        user = db.query(User).get(id)
+        if user:
+            db.delete(user)
+            db.commit()
+            flash('Пользователь удален', 'success')
+    finally:
+        db.close()
+    return redirect(url_for('users'))
+
+@app.route('/users/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_user(id):
+    db = get_db()
+    try:
+        user = db.query(User).get(id)
+        if not user:
+            return redirect(url_for('users'))
+        if request.method == 'POST':
+            user.role = request.form.get('role', 'user')
+            db.commit()
+            flash('Данные пользователя обновлены', 'success')
+            return redirect(url_for('users'))
+        return render_template('user_form_dark.html', user=user)
+    finally:
+        db.close()
+
+# --- 8. Сервисные функции ---
 @app.route('/admin/cleanup', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def cleanup_database():
     db = get_db()
     try:
-        # Удаляем дубликаты или пустые записи (пример)
         db.query(User).filter(User.username == None).delete()
         db.commit()
         flash('База данных оптимизирована', 'success')
@@ -323,7 +355,7 @@ def export_users_xml():
         users_list = db.query(User).all()
         xml = '<?xml version="1.0" encoding="UTF-8"?><users>'
         for u in users_list:
-            xml += f'<user><id>{u.id}</id><username>{u.username}</username><role>{u.role}</role></user>'
+            xml += f'<user><id>{u.id}</id><username>{u.username or "N/A"}</username><role>{u.role}</role></user>'
         xml += '</users>'
         return Response(xml, mimetype='application/xml', 
                         headers={'Content-Disposition': 'attachment;filename=users.xml'})
