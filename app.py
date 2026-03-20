@@ -212,6 +212,7 @@ def edit_gunpack(id):
 def channels():
     db = get_db()
     try:
+        # Оставляем POST здесь только если ты добавляешь каналы через модалку на главной странице каналов
         if request.method == 'POST':
             name = request.form.get('name', '').strip()
             title = request.form.get('title', '').strip()
@@ -221,16 +222,13 @@ def channels():
                 new_ch = Channel(name=name, title=title, is_active=True)
                 db.add(new_ch)
                 db.commit()
-                flash('Канал успешно добавлен!', 'success')
-            else:
-                flash('Заполните все поля!', 'error')
+                flash('Канал добавлен', 'success')
             return redirect(url_for('channels'))
         
         channels_list = db.query(Channel).all()
         return render_template('channels_dark.html', channels=channels_list)
     finally:
         db.close()
-
 @app.route('/channels/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
@@ -281,7 +279,38 @@ def edit_channel(id):
 @login_required
 @admin_required
 def new_channel():
-    return redirect(url_for('channels'))
+    if request.method == 'POST':
+        db = get_db()
+        try:
+            name = request.form.get('name', '').strip()
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '')
+            is_active = 'is_active' in request.form
+            
+            if name and title:
+                if not name.startswith('@') and not name.startswith('-100'):
+                    name = '@' + name
+                
+                new_ch = Channel(
+                    name=name, 
+                    title=title, 
+                    description=description, 
+                    is_active=is_active
+                )
+                db.add(new_ch)
+                db.commit()
+                flash('Канал успешно создан!', 'success')
+                return redirect(url_for('channels'))
+            else:
+                flash('Заполните обязательные поля!', 'error')
+        except Exception as e:
+            db.rollback()
+            flash(f'Ошибка: {e}', 'error')
+        finally:
+            db.close()
+            
+    # Если это GET запрос — просто показываем форму
+    return render_template('channel_form_dark.html', channel=None)
 
 @app.route('/channels/<int:id>/toggle', methods=['POST'])
 @login_required
