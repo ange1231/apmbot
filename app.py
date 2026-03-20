@@ -141,7 +141,62 @@ def delete_gunpack(id):
     finally:
         db.close()
     return redirect(url_for('gunpacks'))
+@app.route('/gunpacks/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def new_gunpack():
+    db = get_db()
+    try:
+        if request.method == 'POST':
+            selected_channels = request.form.getlist('channels')
+            gunpack = Gunpack(
+                name=request.form['name'],
+                description=request.form['description'],
+                image_url=request.form['image_url'],
+                download_link=request.form['download_link'],
+                channels_required=json.dumps(selected_channels),
+                is_active='is_active' in request.form,
+                created_at=datetime.utcnow()
+            )
+            db.add(gunpack)
+            db.commit()
+            flash('Ганпак успешно добавлен!', 'success')
+            return redirect(url_for('gunpacks'))
+        
+        all_channels = db.query(Channel).all()
+        return render_template('gunpack_form_dark.html', gunpack=None, all_channels=all_channels, gunpack_channels=[])
+    finally:
+        db.close()
 
+@app.route('/gunpacks/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_gunpack(id):
+    db = get_db()
+    try:
+        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
+        if not gunpack:
+            flash('Ганпак не найден!', 'error')
+            return redirect(url_for('gunpacks'))
+        
+        if request.method == 'POST':
+            gunpack.name = request.form['name']
+            gunpack.description = request.form['description']
+            gunpack.image_url = request.form['image_url']
+            gunpack.download_link = request.form['download_link']
+            selected_channels = request.form.getlist('channels')
+            gunpack.channels_required = json.dumps(selected_channels)
+            gunpack.is_active = 'is_active' in request.form
+            gunpack.updated_at = datetime.utcnow()
+            db.commit()
+            flash('Ганпак успешно обновлен!', 'success')
+            return redirect(url_for('gunpacks'))
+        
+        all_channels = db.query(Channel).all()
+        gunpack_channels = json.loads(gunpack.channels_required) if gunpack.channels_required else []
+        return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
+    finally:
+        db.close()
 # --- 6. Управление Каналами ---
 @app.route('/channels', methods=['GET', 'POST'])
 @login_required
