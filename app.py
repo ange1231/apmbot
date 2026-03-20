@@ -209,7 +209,23 @@ def edit_gunpack(id):
         return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
     finally:
         db.close()
-
+@app.route('/gunpacks/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_gunpack(id):
+    from database import get_db, Gunpack
+    db = get_db()
+    try:
+        gunpack = db.query(Gunpack).get(id)
+        if gunpack:
+            db.delete(gunpack)
+            db.commit()
+            print(f"--- GUNPACK {id} DELETED ---")
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting gunpack: {e}")
+    finally:
+        db.close()
+    return redirect(url_for('gunpacks'))
 # --- 7. Каналы и Рассылка ---
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
@@ -250,10 +266,23 @@ def broadcast():
 @login_required
 def cleanup_database():
     return "Функция очистки базы в разработке"
+from flask import Response
+
 @app.route('/export/xml')
 @login_required
 def export_users_xml():
-    return "Функция экспорта в разработке"
+    from database import get_db, User
+    db = get_db()
+    users = db.query(User).all()
+    
+    xml = '<?xml version="1.0" encoding="UTF-8"?><users>'
+    for u in users:
+        xml += f'<user><id>{u.id}</id><username>{u.username}</username><role>{u.role}</role></user>'
+    xml += '</users>'
+    db.close()
+    
+    return Response(xml, mimetype='application/xml', 
+                    headers={'Content-Disposition': 'attachment;filename=users.xml'})
 @app.route('/channels')
 @login_required
 def channels():
