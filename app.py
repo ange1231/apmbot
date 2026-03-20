@@ -246,6 +246,9 @@ def broadcast():
         db.close()
 
 # Добавь @login_required и @admin_required к остальным роутам (delete, toggle, channels) по аналогии.
-
+@app.route('/channels')
+@login_required
+def channels():
+    return "Страница каналов в разработке"
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
