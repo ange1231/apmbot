@@ -221,7 +221,9 @@ def channels():
                 new_ch = Channel(name=name, title=title, is_active=True)
                 db.add(new_ch)
                 db.commit()
-                flash('Канал добавлен', 'success')
+                flash('Канал успешно добавлен!', 'success')
+            else:
+                flash('Заполните все поля!', 'error')
             return redirect(url_for('channels'))
         
         channels_list = db.query(Channel).all()
@@ -295,7 +297,7 @@ def toggle_channel(id):
         db.close()
     return redirect(url_for('channels'))
 
-# --- 7. Управление Пользователями (Исправление BuildError) ---
+# --- 7. Управление Пользователями ---
 @app.route('/users/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
@@ -353,12 +355,18 @@ def export_users_xml():
     db = get_db()
     try:
         users_list = db.query(User).all()
-        xml = '<?xml version="1.0" encoding="UTF-8"?><users>'
-        for u in users_list:
-            xml += f'<user><id>{u.id}</id><username>{u.username or "N/A"}</username><role>{u.role}</role></user>'
+        # Формируем XML в виде красивого нумерованного списка
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n<users>\n'
+        for index, u in enumerate(users_list, start=1):
+            xml += f'  <user number="{index}">\n'
+            xml += f'    <id>{u.id}</id>\n'
+            xml += f'    <username>{u.username or "N/A"}</username>\n'
+            xml += f'    <telegram_id>{u.telegram_id or "N/A"}</telegram_id>\n'
+            xml += f'    <role>{u.role}</role>\n'
+            xml += f'  </user>\n'
         xml += '</users>'
         return Response(xml, mimetype='application/xml', 
-                        headers={'Content-Disposition': 'attachment;filename=users.xml'})
+                        headers={'Content-Disposition': 'attachment;filename=users_list.xml'})
     finally:
         db.close()
 
