@@ -246,6 +246,10 @@ def broadcast():
         db.close()
 
 # Добавь @login_required и @admin_required к остальным роутам (delete, toggle, channels) по аналогии.
+@app.route('/export/xml')
+@login_required
+def export_users_xml():
+    return "Функция экспорта в разработке"
 @app.route('/channels')
 @login_required
 def channels():
