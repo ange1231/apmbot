@@ -237,7 +237,41 @@ def delete_channel(id):
     finally:
         db.close()
     return redirect(url_for('channels'))
-# --- Добавь это в секцию 6 (Управление Каналами) ---
+@app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_channel(id):
+    db = get_db()
+    try:
+        channel = db.query(Channel).get(id)
+        if not channel:
+            flash('Канал не найден!', 'error')
+            return redirect(url_for('channels'))
+        
+        if request.method == 'POST':
+            # Обновляем данные из формы
+            channel.name = request.form.get('name', '').strip()
+            channel.title = request.form.get('title', '').strip()
+            channel.description = request.form.get('description', '')
+            
+            # Авто-исправление @
+            if channel.name and not channel.name.startswith('@') and not channel.name.startswith('-100'):
+                channel.name = '@' + channel.name
+                
+            db.commit()
+            flash('Канал успешно обновлен!', 'success')
+            return redirect(url_for('channels'))
+        
+        # Если GET — показываем ту же форму, что и для создания, но с данными канала
+        # Убедись, что файл channel_form_dark.html существует, 
+        # либо используй существующий шаблон для редактирования
+        return render_template('channel_form_dark.html', channel=channel)
+    except Exception as e:
+        db.rollback()
+        flash(f'Ошибка: {e}', 'error')
+        return redirect(url_for('channels'))
+    finally:
+        db.close()
 
 @app.route('/channels/new', methods=['GET', 'POST'])
 @login_required
