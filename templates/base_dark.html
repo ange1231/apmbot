@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080809">
   <title>{% block title %}APM Panel{% endblock %}</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -16,89 +17,77 @@
 
 <div class="app-layout">
 
-  <!-- SIDEBAR -->
+  <!-- ═══ SIDEBAR ═══ -->
   <nav class="sidebar" id="sidebarMenu">
+
     <div class="sidebar-logo">
       <img src="/static/logoSblack.png" alt="Logo">
       <span class="sidebar-logo-text">APM Panel</span>
     </div>
 
-    <ul class="nav flex-column" style="flex:1; overflow-y:auto;">
+    <div style="flex:1; overflow-y:auto; padding-bottom:1rem;">
       <span class="nav-section-label">Навигация</span>
 
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-          <i class="fas fa-home"></i> Главная
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'gunpacks' %}active{% endif %}" href="{{ url_for('gunpacks') }}">
-          <i class="fas fa-crosshairs"></i> Ганпаки
-        </a>
-      </li>
+      <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+        <i class="fas fa-house"></i> Главная
+      </a>
+      <a class="nav-link {% if request.endpoint == 'gunpacks' %}active{% endif %}" href="{{ url_for('gunpacks') }}">
+        <i class="fas fa-crosshairs"></i> Ганпаки
+      </a>
 
       {% if current_user.role == 'admin' %}
-      <span class="nav-section-label" style="margin-top:0.6rem;">Управление</span>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="{{ url_for('broadcast') }}">
-          <i class="fas fa-paper-plane"></i> Рассылка
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
-          <i class="fas fa-users"></i> Пользователи
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'channels' %}active{% endif %}" href="{{ url_for('channels') }}">
-          <i class="fas fa-satellite-dish"></i> Каналы
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}">
-          <i class="fas fa-chart-line"></i> Статистика
-        </a>
-      </li>
+      <span class="nav-section-label" style="margin-top:0.8rem;">Управление</span>
+      <a class="nav-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="{{ url_for('broadcast') }}">
+        <i class="fas fa-paper-plane"></i> Рассылка
+      </a>
+      <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
+        <i class="fas fa-users"></i> Пользователи
+      </a>
+      <a class="nav-link {% if request.endpoint == 'channels' %}active{% endif %}" href="{{ url_for('channels') }}">
+        <i class="fas fa-satellite-dish"></i> Каналы
+      </a>
+      <a class="nav-link {% if request.endpoint == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}">
+        <i class="fas fa-chart-line"></i> Статистика
+      </a>
       {% endif %}
 
-      <hr class="sidebar-divider" style="margin-top:auto;">
-      <li class="nav-item">
-        <a class="nav-link nav-link-logout" href="{{ url_for('logout') }}">
-          <i class="fas fa-sign-out-alt"></i> Выйти
-        </a>
-      </li>
-    </ul>
+      <hr class="sidebar-divider">
+      <a class="nav-link nav-link-logout" href="{{ url_for('logout') }}">
+        <i class="fas fa-right-from-bracket"></i> Выйти
+      </a>
+    </div>
+
   </nav>
 
-  <!-- MAIN -->
+  <!-- ═══ MAIN ═══ -->
   <div class="app-main">
 
     <!-- TOP BAR -->
     <div class="top-bar">
-      <div class="d-flex align-items-center gap-10">
-        <button class="mobile-nav-toggle d-md-none" id="sidebarToggle">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="mobile-nav-toggle" id="sidebarToggle" aria-label="Меню">
           <i class="fas fa-bars"></i>
         </button>
         <span class="top-bar-title">{% block header %}{% endblock %}</span>
       </div>
 
       <div class="user-pill">
-        <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=333&color=fff&bold=true"
+        <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=1a1a1a&color=fff&bold=true&size=64"
              alt="{{ current_user.username }}" class="user-pill-avatar">
-        <span class="user-pill-name d-none d-sm-inline">{{ current_user.username }}</span>
-        <span class="badge-role {% if current_user.role == 'admin' %}admin{% endif %} d-none d-sm-inline">
+        <span class="user-pill-name">{{ current_user.username }}</span>
+        <span class="badge-role {% if current_user.role == 'admin' %}admin{% endif %}">
           {{ current_user.role }}
         </span>
       </div>
     </div>
 
     <!-- ALERTS -->
-    <div class="px-4" style="padding-top:0;">
+    <div style="padding:0 1rem;" id="alerts-container">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
             <div class="apm-alert apm-alert-{{ 'error' if category == 'error' else 'success' }}">
-              <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+              <i class="fas {% if category == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>
               {{ message }}
             </div>
           {% endfor %}
@@ -112,27 +101,51 @@
     </div>
 
   </div><!-- /app-main -->
+
 </div><!-- /app-layout -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // Telegram Mini App init
   const tg = window.Telegram?.WebApp;
   if (tg) {
     tg.ready();
     tg.expand();
-    tg.setHeaderColor('#1a1a1c');
-    tg.setBackgroundColor('#1a1a1c');
+    tg.setHeaderColor('#080809');
+    tg.setBackgroundColor('#080809');
+    if (tg.setBottomBarColor) tg.setBottomBarColor('#080809');
   }
 
+  // Sidebar toggle
   const toggleBtn = document.getElementById('sidebarToggle');
   const sidebar   = document.getElementById('sidebarMenu');
   const overlay   = document.getElementById('sidebarOverlay');
 
-  function openSidebar()  { sidebar.classList.add('show');    overlay.classList.add('show'); }
-  function closeSidebar() { sidebar.classList.remove('show'); overlay.classList.remove('show'); }
+  function openSidebar()  { sidebar.classList.add('show');    overlay.classList.add('show');    document.body.style.overflow = 'hidden'; }
+  function closeSidebar() { sidebar.classList.remove('show'); overlay.classList.remove('show'); document.body.style.overflow = ''; }
 
-  if (toggleBtn) toggleBtn.addEventListener('click', e => { e.stopPropagation(); sidebar.classList.contains('show') ? closeSidebar() : openSidebar(); });
+  if (toggleBtn) toggleBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    sidebar.classList.contains('show') ? closeSidebar() : openSidebar();
+  });
+
   overlay.addEventListener('click', closeSidebar);
+
+  // Close sidebar on nav link click (mobile)
+  sidebar.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth < 768) closeSidebar();
+    });
+  });
+
+  // Auto-dismiss alerts
+  setTimeout(() => {
+    document.querySelectorAll('.apm-alert').forEach(el => {
+      el.style.transition = 'opacity 0.4s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 400);
+    });
+  }, 4000);
 </script>
 {% block scripts %}{% endblock %}
 </body>

@@ -2,9 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#080809">
   <title>Вход — APM Panel</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -24,8 +25,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="apm-alert apm-alert-{{ 'error' if category == 'error' else 'success' }}" style="margin-bottom:1rem;">
-            <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %}"></i>
+          <div class="apm-alert apm-alert-{{ 'error' if category == 'error' else 'success' }}" style="margin-bottom:1.2rem;">
+            <i class="fas {% if category == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>
             {{ message }}
           </div>
         {% endfor %}
@@ -35,21 +36,23 @@
     <!-- TG auth loader -->
     <div id="auth-container" class="login-spinner">
       <div class="spinner-ring"></div>
-      <span style="font-size:12px; color:var(--text-muted);">Авторизация через Telegram...</span>
+      <span>Проверка Telegram...</span>
     </div>
 
     <!-- Manual login form -->
     <form id="login-form" method="POST" style="display:none;">
-      <div style="margin-bottom:1rem;">
+      <div class="form-group">
         <label class="form-label">Логин</label>
-        <input type="text" name="username" class="form-control" placeholder="Введите логин" autocomplete="username">
+        <input type="text" name="username" class="form-control"
+               placeholder="Введите логин" autocomplete="username">
       </div>
-      <div style="margin-bottom:1.4rem;">
+      <div class="form-group" style="margin-bottom:1.4rem;">
         <label class="form-label">Пароль</label>
-        <input type="password" name="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+        <input type="password" name="password" class="form-control"
+               placeholder="••••••••" autocomplete="current-password">
       </div>
-      <button type="submit" class="btn btn-glass-primary btn-full" style="padding:0.7rem;">
-        <i class="fas fa-arrow-right-to-bracket"></i> Войти
+      <button type="submit" class="btn btn-glass-primary btn-full" style="padding:0.65rem; font-size:12px;">
+        <i class="fas fa-right-to-bracket"></i> Войти
       </button>
     </form>
 
@@ -58,7 +61,12 @@
 
 <script>
   const tg = window.Telegram?.WebApp;
-  if (tg) { tg.ready(); tg.expand(); }
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor('#080809');
+    tg.setBackgroundColor('#080809');
+  }
 
   function showForm() {
     document.getElementById('auth-container').style.display = 'none';
@@ -72,7 +80,7 @@
       body: JSON.stringify({ initData: tg.initData })
     })
     .then(r => r.json())
-    .then(d => { if (d.success) { window.location.href = '/dashboard'; } else { showForm(); } })
+    .then(d => { if (d.success) window.location.href = '/dashboard'; else showForm(); })
     .catch(() => showForm());
   } else {
     showForm();
