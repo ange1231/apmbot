@@ -12,12 +12,13 @@
             background-color: #1a1a1a;
             color: #ffffff;
             overflow-x: hidden;
+            font-family: 'Inter', -apple-system, sans-serif;
         }
         
-        /* Стили для Telegram Mini App */
         .sidebar {
             min-height: 100vh;
-            background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            background: linear-gradient(180deg, #1e2024 0%, #121212 100%);
+            border-right: 1px solid #2d2e35;
             z-index: 1000;
         }
 
@@ -26,7 +27,8 @@
                 position: fixed;
                 left: -100%;
                 transition: 0.3s;
-                width: 250px;
+                width: 280px;
+                box-shadow: 10px 0 20px rgba(0,0,0,0.5);
             }
             .sidebar.show {
                 left: 0;
@@ -34,103 +36,69 @@
         }
         
         .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.6);
             border-radius: 0.75rem;
-            margin: 0.25rem 0;
-            transition: all 0.3s ease;
+            margin: 0.2rem 0;
+            padding: 0.8rem 1.2rem;
+            transition: all 0.2s ease;
         }
         
         .sidebar .nav-link:hover,
         .sidebar .nav-link.active {
-            color: white;
-            background-color: rgba(255, 255, 255, 0.15);
-            transform: translateY(-1px);
-        }
-        
-        .card {
-            border: none;
-            border-radius: 1rem;
-            box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.3);
-            background-color: #2d3436;
-        }
-        
-        .card-dark {
-            border: 1px solid #404040;
-            background-color: #2d3436;
-        }
-        
-        .card-header {
-            background: linear-gradient(135deg, #4a5568 0%, #2d3436 100%);
-            color: white;
-            border-radius: 1rem 1rem 0 0 !important;
-            border-bottom: 1px solid #404040;
-        }
-        
-        .btn-primary-dark {
-            background: linear-gradient(135deg, #4a5568 0%, #2d3436 100%);
-            border: none;
-            border-radius: 0.75rem;
-            color: white;
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.08);
         }
 
-        .btn-primary-dark:hover {
-            background: linear-gradient(135deg, #5a6d8a 0%, #4a5568 100%);
-            color: white;
-        }
-
-        .mobile-nav-toggle {
-            display: none;
-            background: #2d3436;
-            border: none;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        @media (max-width: 767.98px) {
-            .mobile-nav-toggle {
-                display: block;
-            }
+        .sidebar .nav-link.active {
+            color: #4e73df;
+            background-color: rgba(78, 115, 223, 0.1);
+            font-weight: 600;
         }
         
-        .logo-container {
-            text-align: center;
-            margin-bottom: 1rem;
-            padding: 1rem;
+        .nav-item-label {
+            font-size: 0.65rem;
+            color: #4e73df;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin: 1.5rem 0 0.5rem 1.2rem;
+            font-weight: 800;
+        }
+
+        .top-bar {
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #2d2e35;
+            padding: 1rem 0;
         }
         
         .logo-img {
-            max-width: 80px;
-            height: auto;
-            border-radius: 1rem;
-        }
-        
-        .border-secondary {
-            border-color: #404040 !important;
-        }
-        
-        .bg-dark {
-            background-color: #2d3436 !important;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .card {
-            animation: fadeIn 0.4s ease-out;
+            max-width: 45px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        /* Специальный стиль для скрытия сайдбара если пунктов мало */
-        .nav-item-label {
-            font-size: 0.7rem;
-            color: #636e72;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-            display: block;
+        .badge-admin { background-color: #e74a3b; }
+        .badge-user { background-color: #4e73df; }
+
+        .btn-primary-dark {
+            background: #4e73df;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1.2rem;
+        }
+
+        .card-dark {
+            background-color: #24252a;
+            border: 1px solid #2d2e35;
+            border-radius: 12px;
+        }
+
+        /* Анимация появления контента */
+        main {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -138,60 +106,86 @@
     <div class="container-fluid">
         <div class="row">
             <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar">
-                <div class="position-sticky pt-3 text-center">
-                    <div class="logo-container d-none d-md-block">
-                        <img src="/static/logoSblack.png" alt="Logo" class="logo-img">
+                <div class="position-sticky pt-3">
+                    <div class="px-4 mb-4 d-flex align-items-center">
+                        <img src="/static/logoSblack.png" alt="Logo" class="logo-img me-2">
+                        <span class="h6 mb-0 text-white fw-bold">APM PANEL</span>
                     </div>
-                    <h5 class="text-white mb-4 mt-2">APM Panel</h5>
                     
-                    <ul class="nav flex-column px-2 text-start">
+                    <ul class="nav flex-column px-3">
+                        <span class="nav-item-label">Игрок</span>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">
-                                <i class="fas fa-tachometer-alt me-2"></i> Главная
+                            <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-home me-2"></i> Главная
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'gunpacks' %}active{% endif %}" href="{{ url_for('gunpacks') }}">
+                                <i class="fas fa-crosshairs me-2"></i> Ганпаки
                             </a>
                         </li>
 
                         {# РАЗДЕЛ ТОЛЬКО ДЛЯ АДМИНИСТРАТОРА #}
                         {% if current_user.role == 'admin' %}
-                        <span class="nav-item-label px-3">Управление</span>
+                        <span class="nav-item-label">Управление</span>
                         
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('users') }}">
+                            <a class="nav-link {% if request.endpoint == 'broadcast' %}active{% endif %}" href="{{ url_for('broadcast') }}">
+                                <i class="fas fa-paper-plane me-2"></i> Рассылка
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'users' %}active{% endif %}" href="{{ url_for('users') }}">
                                 <i class="fas fa-users me-2"></i> Пользователи
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('channels') }}">
-                                <i class="fas fa-broadcast-tower me-2"></i> Каналы
+                            <a class="nav-link {% if request.endpoint == 'channels' %}active{% endif %}" href="{{ url_for('channels') }}">
+                                <i class="fas fa-robot me-2"></i> Каналы
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('gunpacks') }}">
-                                <i class="fas fa-box me-2"></i> Ганпаки
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('statistics') }}">
-                                <i class="fas fa-chart-bar me-2"></i> Статистика
+                            <a class="nav-link {% if request.endpoint == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}">
+                                <i class="fas fa-chart-line me-2"></i> Статистика
                             </a>
                         </li>
                         {% endif %}
+
+                        <hr class="text-secondary mt-4">
+                        <li class="nav-item">
+                            <a class="nav-link text-danger mt-2" href="{{ url_for('logout') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i> Выход
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
 
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom border-secondary">
-                    <button class="mobile-nav-toggle me-3 d-md-none" id="sidebarToggle">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <h1 class="h3 text-white m-0">{% block header %}{% endblock %}</h1>
+                <div class="top-bar d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <button class="mobile-nav-toggle me-3 d-md-none" id="sidebarToggle">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                        <h1 class="h4 text-white m-0">{% block header %}{% endblock %}</h1>
+                    </div>
+                    
+                    <div class="user-profile d-flex align-items-center">
+                        <div class="text-end d-none d-sm-block me-2">
+                            <div class="text-white small fw-bold">{{ current_user.username }}</div>
+                            <span class="badge {% if current_user.role == 'admin' %}badge-admin{% else %}badge-user{% endif %}" style="font-size: 0.6rem;">
+                                {{ current_user.role|upper }}
+                            </span>
+                        </div>
+                        <img src="https://ui-avatars.com/api/?name={{ current_user.username }}&background=4e73df&color=fff" width="32" class="rounded-circle shadow-sm">
+                    </div>
                 </div>
 
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show bg-dark text-white border-secondary" role="alert">
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show bg-dark text-white border-secondary mb-4" role="alert">
+                                <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} me-2"></i>
                                 {{ message }}
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
                             </div>
@@ -208,23 +202,27 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
+        // Telegram Web App Init
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         tg.setHeaderColor('#1a1a1a');
 
+        // Mobile Sidebar Toggle
         const toggleBtn = document.getElementById('sidebarToggle');
         const sidebar = document.getElementById('sidebarMenu');
         
         if(toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
+            toggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 sidebar.classList.toggle('show');
             });
         }
 
+        // Close sidebar on outside click
         document.addEventListener('click', (e) => {
-            if (window.innerWidth < 768) {
-                if (sidebar && !sidebar.contains(e.target) && toggleBtn && !toggleBtn.contains(e.target)) {
+            if (window.innerWidth < 768 && sidebar.classList.contains('show')) {
+                if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
                     sidebar.classList.remove('show');
                 }
             }
