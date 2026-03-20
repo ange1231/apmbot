@@ -136,22 +136,35 @@ def index():
 
 @app.route('/dashboard')
 @login_required
-@admin_required
 def dashboard():
-    init_default_channels()
     db = get_db()
     try:
+        # Общие данные (доступны всем)
         users_count = db.query(User).count()
-        gunpacks_count = db.query(Gunpack).count()
-        channels_count = db.query(Channel).count()
         total_downloads = db.query(Download).count()
-        recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
-        recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
+        
+        # Статистика по ганпакам (доступна всем)
+        gunpacks = db.query(Gunpack).all()
+        gunpack_stats = []
+        for gp in gunpacks:
+            count = db.query(Download).filter(Download.gunpack_id == gp.id).count()
+            gunpack_stats.append({
+                'name': gp.name,
+                'downloads': count,
+                'image': gp.image_url
+            })
+
+        # Данные только для админа
+        recent_users = []
+        recent_downloads = []
+        if current_user.role == 'admin':
+            recent_users = db.query(User).order_by(User.created_at.desc()).limit(5).all()
+            recent_downloads = db.query(Download).order_by(Download.downloaded_at.desc()).limit(5).all()
+
         return render_template('dashboard_dark.html', 
                                users_count=users_count,
-                               gunpacks_count=gunpacks_count,
-                               channels_count=channels_count,
                                total_downloads=total_downloads,
+                               gunpack_stats=gunpack_stats,
                                recent_users=recent_users,
                                recent_downloads=recent_downloads)
     finally:
