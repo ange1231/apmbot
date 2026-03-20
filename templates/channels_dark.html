@@ -1,59 +1,82 @@
 {% extends "base_dark.html" %}
-
-{% block title %}Каналы - Админ панель{% endblock %}
-
+{% block title %}Каналы — APM Panel{% endblock %}
 {% block header %}Управление каналами{% endblock %}
 
 {% block content %}
-<div class="card card-dark border-0 shadow-lg">
-    <div class="card-header bg-dark border-secondary">
-        <div class="d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-white">Каналы</h6>
-            <a href="{{ url_for('channels') }}" class="btn btn-primary-dark">
-                <i class="fas fa-plus me-2"></i>Добавить канал
-            </a>
+
+<!-- Add channel form -->
+<div class="glass-card mb-section">
+  <div class="card-head">
+    <span class="card-title">Добавить канал</span>
+  </div>
+  <div class="card-body-inner">
+    <form method="POST" action="{{ url_for('channels') }}">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">Имя канала</label>
+          <input type="text" name="name" class="form-control" placeholder="@channel_name или -100xxxxxxxxx" required>
         </div>
-    </div>
-    <div class="card-body bg-dark">
-        <div class="table-responsive">
-            <table class="table table-bordered table-dark">
-                <thead>
-                    <tr>
-                        <th class="text-white">ID</th>
-                        <th class="text-white">Название</th>
-                        <th class="text-white">Заголовок</th>
-                        <th class="text-white">Статус</th>
-                        <th class="text-white">Действия</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for channel in channels %}
-                    <tr class="channel-item-dark">
-                        <td class="text-white">{{ channel.id }}</td>
-                        <td class="text-white">{{ channel.name }}</td>
-                        <td class="text-muted">{{ channel.title or channel.name }}</td>
-                        <td>
-                            {% if channel.is_active %}
-                                <span class="badge bg-success text-white">Активен</span>
-                            {% else %}
-                                <span class="badge bg-secondary text-white">Неактивен</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('edit_channel', id=channel.id) }}" class="btn btn-info-dark btn-sm me-1">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <form method="POST" action="{{ url_for('delete_channel', id=channel.id) }}" style="display: inline;" onsubmit="return confirm('Удалить канал?')">
-                                <button type="submit" class="btn btn-danger-dark btn-sm">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="col-md-5">
+          <label class="form-label">Заголовок</label>
+          <input type="text" name="title" class="form-control" placeholder="Отображаемое название" required>
         </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-glass-primary btn-full">
+            <i class="fas fa-plus"></i> Добавить
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Channel list -->
+<div class="glass-card">
+  <div class="card-head">
+    <span class="card-title">Каналы</span>
+  </div>
+  <div class="card-body-inner" style="padding:0;">
+    <div class="table-responsive">
+      <table class="apm-table" style="margin:0;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Имя</th>
+            <th>Заголовок</th>
+            <th>Статус</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ch in channels %}
+          <tr>
+            <td style="color:var(--text-muted);">{{ ch.id }}</td>
+            <td style="font-weight:600;">{{ ch.name }}</td>
+            <td style="color:var(--text-dim);">{{ ch.title or ch.name }}</td>
+            <td>
+              {% if ch.is_active %}
+                <span class="apm-badge apm-badge-active"><i class="fas fa-circle" style="font-size:6px;"></i> Активен</span>
+              {% else %}
+                <span class="apm-badge apm-badge-inactive">Неактивен</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:inline-flex; gap:6px;">
+                <a href="{{ url_for('edit_channel', id=ch.id) }}" class="btn btn-glass-secondary btn-sm">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_channel', id=ch.id) }}" style="display:inline;" onsubmit="return confirm('Удалить канал?')">
+                  <button type="submit" class="btn btn-glass-danger btn-sm"><i class="fas fa-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:2.5rem;">Каналов нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 </div>
 {% endblock %}

@@ -1,168 +1,142 @@
 {% extends "base_dark.html" %}
-
-{% block title %}Рассылка в Telegram{% endblock %}
+{% block title %}Рассылка — APM Panel{% endblock %}
+{% block header %}Рассылка в Telegram{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-white">📤 Рассылка в Telegram</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-muted">Главная</a></li>
-                <li class="breadcrumb-item active text-white">Рассылка</li>
-            </ol>
-        </nav>
-    </div>
+{% if current_user.role == 'admin' %}
 
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card card-dark border-0 shadow-lg">
-                <div class="card-header bg-dark border-secondary">
-                    <h6 class="m-0 font-weight-bold text-white">Создание рассылки</h6>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="glass-card mb-section">
+      <div class="card-head">
+        <span class="card-title">Создание рассылки</span>
+      </div>
+      <div class="card-body-inner">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Ганпак</label>
+            <select class="form-select" name="gunpack_id" required>
+              <option value="">Выберите ганпак...</option>
+              {% for gp in gunpacks %}
+              <option value="{{ gp.id }}">{{ gp.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Текст сообщения</label>
+            <textarea class="form-control" name="message_text" rows="5" required
+                      placeholder="Введите текст рассылки..."></textarea>
+            <div class="form-text">Под текстом будет кнопка «Получить ганпак»</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Тип медиа (опционально)</label>
+            <select class="form-select" id="media_type" name="media_type">
+              <option value="">Без медиа</option>
+              <option value="photo">Фото</option>
+              <option value="gif">GIF</option>
+              <option value="youtube">YouTube видео</option>
+            </select>
+          </div>
+
+          <div class="mb-3" id="media_url_container" style="display:none;">
+            <label class="form-label">URL медиа</label>
+            <input type="url" class="form-control" id="media_url" name="media_url"
+                   placeholder="https://example.com/image.jpg">
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label">Каналы для рассылки</label>
+            <div class="channel-scroll-box">
+              {% if channels %}
+                {% for ch in channels %}
+                <div class="form-check mb-2">
+                  <input class="form-check-input" type="checkbox" name="channels"
+                         value="{{ ch.name }}" id="bch_{{ ch.id }}">
+                  <label class="form-check-label" for="bch_{{ ch.id }}">
+                    <strong>{{ ch.name }}</strong>
+                    {% if ch.title %} — {{ ch.title }}{% endif %}
+                  </label>
                 </div>
-                <div class="card-body bg-dark">
-                    {% if current_user.role == 'admin' %}
-                    <form method="POST">
-                        <div class="mb-3">
-                            <label for="gunpack_id" class="form-label text-white">Выберите ганпак</label>
-                            <select class="form-select bg-dark text-white border-secondary" id="gunpack_id" name="gunpack_id" required>
-                                <option value="">Выберите ганпак...</option>
-                                {% for gunpack in gunpacks %}
-                                <option value="{{ gunpack.id }}">{{ gunpack.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <div class="form-text text-muted">Ганпак, который будет предложен для получения</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="message_text" class="form-label text-white">Текст сообщения</label>
-                            <textarea class="form-control bg-dark text-white border-secondary" 
-                                      id="message_text" name="message_text" rows="5" required
-                                      placeholder="Введите текст сообщения для рассылки..."></textarea>
-                            <div class="form-text text-muted">
-                                Текст, который будет отправлен в каналы. Под ним будет кнопка "Получить ганпак"
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="media_type" class="form-label text-white">Тип медиа (опционально)</label>
-                            <select class="form-select bg-dark text-white border-secondary" id="media_type" name="media_type">
-                                <option value="">Без медиа</option>
-                                <option value="photo">Фото</option>
-                                <option value="gif">GIF</option>
-                                <option value="youtube">YouTube видео</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3" id="media_url_container" style="display: none;">
-                            <label for="media_url" class="form-label text-white">URL медиа</label>
-                            <input type="url" class="form-control bg-dark text-white border-secondary" 
-                                   id="media_url" name="media_url" 
-                                   placeholder="https://example.com/image.jpg">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-white">Каналы для рассылки</label>
-                            <div class="border border-secondary rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
-                                {% if channels %}
-                                    {% for channel in channels %}
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   name="channels" value="{{ channel.name }}" 
-                                                   id="channel_{{ channel.id }}">
-                                            <label class="form-check-label text-white" for="channel_{{ channel.id }}">
-                                                <strong>@{{ channel.name }}</strong>
-                                                {% if channel.title %} - {{ channel.title }}{% endif %}
-                                            </label>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="text-muted small">Нет активных каналов. <a href="{{ url_for('channels') }}">Добавить?</a></p>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="row pt-3">
-                            <div class="col-md-6 mb-2">
-                                <button type="submit" class="btn btn-primary-dark w-100">
-                                    <i class="fas fa-paper-plane me-2"></i>Запустить рассылку
-                                </button>
-                            </div>
-                            <div class="col-md-6">
-                                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary w-100 text-white">
-                                    <i class="fas fa-times me-2"></i>Отмена
-                                </a>
-                            </div>
-                        </div>
-                    </form>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-lock fa-4x text-muted mb-3"></i>
-                        <h5 class="text-white">Доступ ограничен</h5>
-                        <p class="text-muted">Только администраторы могут создавать и запускать рассылки в Telegram каналы.</p>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-primary-dark mt-3">Вернуться на главную</a>
-                    </div>
-                    {% endif %}
-                </div>
+                {% endfor %}
+              {% else %}
+                <p style="color:var(--text-muted); font-size:13px; margin:0;">
+                  Нет активных каналов. <a href="{{ url_for('channels') }}">Добавить?</a>
+                </p>
+              {% endif %}
             </div>
-        </div>
-    </div>
+          </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card card-dark border-0 shadow-lg">
-                <div class="card-header bg-dark border-secondary">
-                    <h6 class="m-0 font-weight-bold text-white">📋 Инструкция по работе</h6>
-                </div>
-                <div class="card-body bg-dark">
-                    <div class="row">
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
-                                <i class="fas fa-edit fa-2x"></i>
-                            </div>
-                            <h6 class="text-white">1. Контент</h6>
-                            <p class="text-muted small">Выберите нужный ганпак и составьте привлекательный текст поста.</p>
-                        </div>
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
-                                <i class="fas fa-check-double fa-2x"></i>
-                            </div>
-                            <h6 class="text-white">2. Каналы</h6>
-                            <p class="text-muted small">Отметьте галочками каналы, в которых бот имеет права администратора.</p>
-                        </div>
-                        <div class="col-md-4 text-center mb-3">
-                            <div class="badge bg-primary-dark p-3 rounded-circle mb-2">
-                                <i class="fas fa-rocket fa-2x"></i>
-                            </div>
-                            <h6 class="text-white">3. Результат</h6>
-                            <p class="text-muted small">После нажатия кнопки бот мгновенно опубликует пост с кнопкой получения.</p>
-                        </div>
-                    </div>
-                </div>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <button type="submit" class="btn btn-glass-primary btn-full">
+                <i class="fas fa-paper-plane"></i> Запустить рассылку
+              </button>
             </div>
-        </div>
+            <div class="col-md-6">
+              <a href="{{ url_for('dashboard') }}" class="btn btn-glass-secondary btn-full">
+                <i class="fas fa-times"></i> Отмена
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="col-lg-4">
+    <div class="glass-card">
+      <div class="card-head"><span class="card-title">Инструкция</span></div>
+      <div class="card-body-inner">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Контент</div>
+          <div class="step-desc">Выберите ганпак и составьте текст поста</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">Каналы</div>
+          <div class="step-desc">Отметьте каналы где бот — администратор</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Результат</div>
+          <div class="step-desc">Бот мгновенно публикует пост с кнопкой</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
+{% else %}
+<div class="glass-card text-center" style="padding:3rem 2rem;">
+  <i class="fas fa-lock" style="font-size:2.5rem; color:var(--text-muted); margin-bottom:1rem;"></i>
+  <h5 style="color:var(--white);">Доступ ограничен</h5>
+  <p style="color:var(--text-muted); font-size:13px; margin-bottom:1.5rem;">
+    Только администраторы могут создавать рассылки.
+  </p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-glass-primary">Вернуться на главную</a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
 <script>
-document.getElementById('media_type').addEventListener('change', function() {
-    const mediaUrlContainer = document.getElementById('media_url_container');
-    const mediaUrl = document.getElementById('media_url');
-    
-    if (this.value) {
-        mediaUrlContainer.style.display = 'block';
-        mediaUrl.required = true;
-        
-        if (this.value === 'youtube') {
-            mediaUrl.placeholder = 'https://youtube.com/watch?v=...';
-        } else {
-            mediaUrl.placeholder = 'https://example.com/image.jpg';
-        }
-    } else {
-        mediaUrlContainer.style.display = 'none';
-        mediaUrl.required = false;
-        mediaUrl.value = '';
-    }
+document.getElementById('media_type')?.addEventListener('change', function() {
+  const box = document.getElementById('media_url_container');
+  const inp = document.getElementById('media_url');
+  if (this.value) {
+    box.style.display = 'block';
+    inp.required = true;
+    inp.placeholder = this.value === 'youtube' ? 'https://youtube.com/watch?v=...' : 'https://example.com/image.jpg';
+  } else {
+    box.style.display = 'none';
+    inp.required = false;
+    inp.value = '';
+  }
 });
 </script>
 {% endblock %}

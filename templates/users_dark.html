@@ -1,54 +1,50 @@
 {% extends "base_dark.html" %}
-
-{% block title %}Пользователи - Админ панель{% endblock %}
-
+{% block title %}Пользователи — APM Panel{% endblock %}
 {% block header %}Пользователи{% endblock %}
 
 {% block content %}
-<div class="card card-dark border-0 shadow-lg">
-    <div class="card-header bg-dark border-secondary">
-        <div class="d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-white">Все пользователи ({{ users|length }})</h6>
-            <div>
-                <a href="{{ url_for('export_users_xml') }}" class="btn btn-success-dark btn-sm">
-                    <i class="fas fa-file-export me-2"></i>Экспорт в XML
-                </a>
-            </div>
-        </div>
+<div class="glass-card">
+  <div class="card-head">
+    <span class="card-title">Все пользователи ({{ users|length }})</span>
+    <a href="{{ url_for('export_users_json') }}" class="btn btn-glass-secondary btn-sm">
+      <i class="fas fa-file-export"></i> Экспорт JSON
+    </a>
+  </div>
+  <div class="card-body-inner" style="padding:0;">
+    <div class="table-responsive">
+      <table class="apm-table" style="margin:0;">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Telegram ID</th>
+            <th>Имя</th>
+            <th>Username</th>
+            <th>Роль</th>
+            <th>Регистрация</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td style="color:var(--text-muted);">{{ u.id }}</td>
+            <td style="color:var(--text-muted); font-size:12px;">{{ u.telegram_id }}</td>
+            <td style="font-weight:600;">{{ u.first_name or '' }} {{ u.last_name or '' }}</td>
+            <td style="color:var(--text-dim);">@{{ u.username or 'N/A' }}</td>
+            <td>
+              {% if u.role == 'admin' %}
+                <span class="apm-badge apm-badge-admin"><i class="fas fa-crown" style="font-size:8px;"></i> Админ</span>
+              {% else %}
+                <span class="apm-badge apm-badge-user">Пользователь</span>
+              {% endif %}
+            </td>
+            <td style="color:var(--text-muted);">{{ u.created_at.strftime('%d.%m.%Y %H:%M') if u.created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2.5rem;">Пользователей нет</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body bg-dark">
-        <div class="table-responsive">
-            <table class="table table-bordered table-dark">
-                <thead>
-                    <tr>
-                        <th class="text-white">ID</th>
-                        <th class="text-white">Telegram ID</th>
-                        <th class="text-white">Имя</th>
-                        <th class="text-white">Username</th>
-                        <th class="text-white">Статус</th>
-                        <th class="text-white">Дата регистрации</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr class="user-item-dark">
-                        <td class="text-white">{{ user.id }}</td>
-                        <td class="text-white">{{ user.telegram_id }}</td>
-                        <td class="text-white">{{ user.first_name }} {{ user.last_name }}</td>
-                        <td class="text-white">@{{ user.username or 'N/A' }}</td>
-                        <td>
-                            {% if user.is_admin %}
-                                <span class="badge bg-danger text-white">Админ</span>
-                            {% else %}
-                                <span class="badge bg-success text-white">Пользователь</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-muted">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
 {% endblock %}
