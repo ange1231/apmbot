@@ -3,6 +3,7 @@ import os
 import json
 import logging
 from aiogram import Bot, Dispatcher, types, F
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, 
     ReplyKeyboardMarkup, KeyboardButton,
@@ -25,7 +26,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Инициализация бота
-bot = Bot(token=config.BOT_TOKEN)
+# Настройки прокси
+# Формат: http://логин:пароль@айпи:порт
+PROXY_URL = "http://540311:573050@185.76.241.171:43916"
+
+# Инициализация бота через прокси-сессию
+session = AiohttpSession(proxy=PROXY_URL)
+bot = Bot(token=config.BOT_TOKEN, session=session)
 dp = Dispatcher()
 
 def get_main_keyboard():
