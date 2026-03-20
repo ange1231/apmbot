@@ -3,22 +3,26 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import config
-
+from flask_login import UserMixin
 Base = declarative_base()
 
-class User(Base):
+class User(Base, UserMixin): # Добавляем UserMixin
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    telegram_id = Column(Integer, unique=True, nullable=False)
-    username = Column(String(255))
+    telegram_id = Column(Integer, unique=True, nullable=True) # nullable=True, т.к. админ может быть не из ТГ
+    username = Column(String(255), unique=True) # Логин для входа на сайт
+    password_hash = Column(String(255)) # Хэш пароля
+    role = Column(String(50), default='user') # 'admin' или 'user'
     first_name = Column(String(255))
     last_name = Column(String(255))
     is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    email = Column(String(255), unique=True)
+    is_verified = Column(Boolean, default=False)
+    two_factor_secret = Column(String(32)) 
     
+    created_at = Column(DateTime, default=datetime.utcnow)
     downloads = relationship("Download", back_populates="user")
-
 class Channel(Base):
     __tablename__ = 'channels'
     
