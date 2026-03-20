@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_bcrypt import Bcrypt
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import io
@@ -10,20 +12,78 @@ from database import get_db, User, Gunpack, Download, Channel, GunpackChannel, i
 import os
 import asyncio
 
+# --- 1. Инициализация приложения ---
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['DEBUG'] = True
 
+# --- 2. Настройка безопасности ---
+bcrypt = Bcrypt(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    db = get_db()
+    try:
+        return db.query(User).filter(User.id == int(user_id)).first()
+    finally:
+        db.close()
+
+# --- 3. Функции-помощники ---
+def admin_required(f):
+    """Декоратор для проверки прав администратора"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('У вас нет прав для доступа к этой странице.', 'error')
+            return redirect(url_for('statistics'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- 4. Роуты авторизации ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        db = get_db()
+        try:
+            user = db.query(User).filter(User.username == username).first()
+            if user and user.password_hash and bcrypt.check_password_hash(user.password_hash, password):
+                login_user(user)
+                flash('Вы успешно вошли!', 'success')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Неверный логин или пароль', 'error')
+        finally:
+            db.close()
+    return render_template('login_dark.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Вы вышли из системы', 'info')
+    return redirect(url_for('login'))
+
+# --- 5. Основные страницы панели ---
 @app.route('/')
 def index():
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard')
+@login_required
+@admin_required
 def dashboard():
-    # Инициализация каналов при первом запуске
     init_default_channels()
-    
     db = get_db()
     try:
         users_count = db.query(User).count()
@@ -45,6 +105,8 @@ def dashboard():
         db.close()
 
 @app.route('/users')
+@login_required
+@admin_required
 def users():
     db = get_db()
     try:
@@ -53,7 +115,30 @@ def users():
     finally:
         db.close()
 
+@app.route('/statistics')
+@login_required
+def statistics():
+    db = get_db()
+    try:
+        total_users = db.query(User).count()
+        gunpacks = db.query(Gunpack).filter(Gunpack.is_active == True).all()
+        stats = []
+        for gunpack in gunpacks:
+            downloads_count = db.query(Download).filter(Download.gunpack_id == gunpack.id).count()
+            unique_users_count = db.query(Download).filter(Download.gunpack_id == gunpack.id).distinct(Download.user_id).count()
+            stats.append({
+                'gunpack': gunpack,
+                'downloads_count': downloads_count,
+                'unique_users_count': unique_users_count
+            })
+        return render_template('statistics_dark.html', stats=stats, total_users=total_users)
+    finally:
+        db.close()
+
+# --- 6. Управление Ганпаками ---
 @app.route('/gunpacks')
+@login_required
+@admin_required
 def gunpacks():
     db = get_db()
     try:
@@ -63,13 +148,13 @@ def gunpacks():
         db.close()
 
 @app.route('/gunpacks/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def new_gunpack():
     if request.method == 'POST':
         db = get_db()
         try:
-            # Получаем выбранные каналы из чекбоксов
             selected_channels = request.form.getlist('channels')
-            
             gunpack = Gunpack(
                 name=request.form['name'],
                 description=request.form['description'],
@@ -88,7 +173,6 @@ def new_gunpack():
         finally:
             db.close()
     
-    # Получаем список каналов для формы
     db = get_db()
     try:
         all_channels = db.query(Channel).all()
@@ -97,457 +181,71 @@ def new_gunpack():
         db.close()
 
 @app.route('/gunpacks/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def edit_gunpack(id):
-    print(f"Редактирование ганпака с ID: {id}")
     db = get_db()
     try:
         gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
         if not gunpack:
-            print(f"Ганпак с ID {id} не найден")
             flash('Ганпак не найден!', 'error')
             return redirect(url_for('gunpacks'))
         
-        print(f"Найден ганпак: {gunpack.name}")
-        
         if request.method == 'POST':
-            print("Обработка POST запроса")
             gunpack.name = request.form['name']
             gunpack.description = request.form['description']
             gunpack.image_url = request.form['image_url']
             gunpack.download_link = request.form['download_link']
-            
-            # Получаем выбранные каналы из чекбоксов
             selected_channels = request.form.getlist('channels')
             gunpack.channels_required = json.dumps(selected_channels)
-            
             gunpack.is_active = 'is_active' in request.form
             gunpack.updated_at = datetime.utcnow()
             db.commit()
             flash('Ганпак успешно обновлен!', 'success')
             return redirect(url_for('gunpacks'))
         
-        # Получаем список каналов для формы
         all_channels = db.query(Channel).all()
-        try:
-            gunpack_channels = json.loads(gunpack.channels_required) if gunpack.channels_required else []
-        except json.JSONDecodeError as e:
-            print(f"Ошибка парсинга JSON каналов: {e}, данные: {gunpack.channels_required}")
-            gunpack_channels = []
-        
-        print(f"Рендеринг шаблона с ганпаком: {gunpack.name}")
+        gunpack_channels = json.loads(gunpack.channels_required) if gunpack.channels_required else []
         return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
-    except Exception as e:
-        print(f"Ошибка в edit_gunpack: {e}")
-        import traceback
-        traceback.print_exc()
-        flash(f'Ошибка: {str(e)}', 'error')
-        return redirect(url_for('gunpacks'))
     finally:
         db.close()
 
-@app.route('/gunpacks/<int:id>/toggle', methods=['POST'])
-def toggle_gunpack(id):
-    db = get_db()
-    try:
-        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
-        if gunpack:
-            gunpack.is_active = not gunpack.is_active
-            db.commit()
-            flash(f'Ганпак {"активирован" if gunpack.is_active else "деактивирован"}!', 'success')
-        return redirect(url_for('gunpacks'))
-    finally:
-        db.close()
-
-@app.route('/gunpacks/<int:id>/delete', methods=['POST'])
-def delete_gunpack(id):
-    db = get_db()
-    try:
-        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
-        if gunpack:
-            # Удаляем все связанные скачивания
-            downloads = db.query(Download).filter(Download.gunpack_id == id).all()
-            for download in downloads:
-                db.delete(download)
-            
-            # Удаляем сам ганпак
-            db.delete(gunpack)
-            db.commit()
-            
-            downloads_count = len(downloads)
-            if downloads_count > 0:
-                flash(f'Ганпак успешно удален! Также удалено {downloads_count} записей о скачиваниях.', 'success')
-            else:
-                flash('Ганпак успешно удален!', 'success')
-        else:
-            flash('Ганпак не найден!', 'error')
-        return redirect(url_for('gunpacks'))
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка при удалении ганпака: {str(e)}', 'error')
-        return redirect(url_for('gunpacks'))
-    finally:
-        db.close()
-
-@app.route('/admin/cleanup')
-def cleanup_database():
-    """Очистка базы данных от осиротевших записей"""
-    db = get_db()
-    try:
-        # Находим скачивания без связанных ганпаков
-        orphan_downloads = db.query(Download).outerjoin(Gunpack).filter(Gunpack.id.is_(None)).all()
-        
-        # Удаляем осиротевшие скачивания
-        deleted_count = 0
-        for download in orphan_downloads:
-            db.delete(download)
-            deleted_count += 1
-        
-        db.commit()
-        
-        if deleted_count > 0:
-            flash(f'Очистка завершена! Удалено {deleted_count} осиротевших записей о скачиваниях.', 'success')
-        else:
-            flash('Очистка завершена! Осиротевших записей не найдено.', 'success')
-        
-        return redirect(url_for('dashboard'))
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка при очистке базы данных: {str(e)}', 'error')
-        return redirect(url_for('dashboard'))
-    finally:
-        db.close()
-
+# --- 7. Каналы и Рассылка ---
 @app.route('/broadcast', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def broadcast():
-    """Страница рассылки в Telegram каналы"""
     db = get_db()
     try:
         if request.method == 'POST':
-            # Получаем данные формы
             gunpack_id = request.form.get('gunpack_id')
             message_text = request.form.get('message_text')
             selected_channels = request.form.getlist('channels')
-            media_type = request.form.get('media_type', '')
-            media_url = request.form.get('media_url', '')
             
             if not gunpack_id or not message_text or not selected_channels:
-                flash('Заполните все поля и выберите хотя бы один канал!', 'error')
+                flash('Заполните все поля!', 'error')
                 return redirect(url_for('broadcast'))
             
-            # Проверяем валидность медиа если указано
-            if media_type and not media_url:
-                flash('Укажите URL медиа!', 'error')
-                return redirect(url_for('broadcast'))
-            
-            # Прямая отправка через asyncio
+            from broadcast_handler import send_broadcast_to_channels
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             try:
-                print(f"DEBUG: Попытка отправки ганпака {gunpack_id}", flush=True)
-                from broadcast_handler import send_broadcast_to_channels
-                import asyncio
-                
-                # Создаем новый цикл вручную, чтобы он не конфликтовал с прошлыми
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(send_broadcast_to_channels(
-                        int(gunpack_id), 
-                        message_text, 
-                        selected_channels,
-                        media_type,
-                        media_url
-                    ))
-                    print(f"DEBUG: Результат функции: {result}", flush=True)
-                finally:
-                    loop.close()
-                
-                flash('Рассылка успешно выполнена!', 'success')
-            except Exception as e:
-                print(f"DEBUG: КРИТИЧЕСКАЯ ОШИБКА: {str(e)}", flush=True)
-                flash(f'Ошибка при отправке: {str(e)}', 'error')
-            
+                loop.run_until_complete(send_broadcast_to_channels(
+                    int(gunpack_id), message_text, selected_channels, 
+                    request.form.get('media_type', ''), request.form.get('media_url', '')
+                ))
+                flash('Рассылка запущена!', 'success')
+            finally:
+                loop.close()
             return redirect(url_for('dashboard'))
-        
-        # GET запрос: получаем активные ганпаки и каналы
+
         gunpacks = db.query(Gunpack).filter(Gunpack.is_active == True).all()
         channels = db.query(Channel).filter(Channel.is_active == True).all()
-        
         return render_template('broadcast_dark.html', gunpacks=gunpacks, channels=channels)
     finally:
         db.close()
 
-@app.route('/channels')
-def channels():
-    db = get_db()
-    try:
-        channels = db.query(Channel).order_by(Channel.created_at.desc()).all()
-        return render_template('channels_dark.html', channels=channels)
-    finally:
-        db.close()
-
-@app.route('/channels/new', methods=['GET', 'POST'])
-def new_channel():
-    if request.method == 'POST':
-        db = get_db()
-        try:
-            channel = Channel(
-                name=request.form['name'],
-                title=request.form['title'],
-                description=request.form.get('description', ''),
-                is_active='is_active' in request.form
-            )
-            db.add(channel)
-            db.commit()
-            flash('Канал успешно создан!', 'success')
-            return redirect(url_for('channels'))
-        finally:
-            db.close()
-    
-    return render_template('channel_form_dark.html', channel=None)
-
-@app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
-def edit_channel(id):
-    db = get_db()
-    try:
-        channel = db.query(Channel).filter(Channel.id == id).first()
-        if not channel:
-            flash('Канал не найден!', 'error')
-            return redirect(url_for('channels'))
-        
-        if request.method == 'POST':
-            channel.name = request.form['name']
-            channel.title = request.form['title']
-            channel.description = request.form.get('description', '')
-            channel.is_active = 'is_active' in request.form
-            db.commit()
-            flash('Канал успешно обновлен!', 'success')
-            return redirect(url_for('channels'))
-        
-        return render_template('channel_form_dark.html', channel=channel)
-    finally:
-        db.close()
-
-@app.route('/channels/<int:id>/toggle', methods=['POST'])
-def toggle_channel(id):
-    db = get_db()
-    try:
-        channel = db.query(Channel).filter(Channel.id == id).first()
-        if channel:
-            channel.is_active = not channel.is_active
-            db.commit()
-            flash(f'Канал {"активирован" if channel.is_active else "деактивирован"}!', 'success')
-        return redirect(url_for('channels'))
-    finally:
-        db.close()
-
-@app.route('/channels/<int:id>/delete', methods=['POST'])
-def delete_channel(id):
-    db = get_db()
-    try:
-        channel = db.query(Channel).filter(Channel.id == id).first()
-        if channel:
-            # Проверяем, используется ли канал в ганпаках
-            gunpacks_using_channel = []
-            gunpacks = db.query(Gunpack).all()
-            
-            for gunpack in gunpacks:
-                if gunpack.channels_required:
-                    try:
-                        channels = json.loads(gunpack.channels_required)
-                        if channel.name in channels:
-                            gunpacks_using_channel.append(gunpack.name)
-                    except json.JSONDecodeError:
-                        pass
-            
-            if gunpacks_using_channel:
-                # Если канал используется, не удаляем его, а предлагаем деактивировать
-                flash(f'Канал используется в ганпаках: {", ".join(gunpacks_using_channel)}. Деактивируйте его вместо удаления.', 'warning')
-                channel.is_active = False
-                db.commit()
-            else:
-                # Если канал не используется, удаляем его
-                db.delete(channel)
-                db.commit()
-                flash('Канал успешно удален!', 'success')
-        else:
-            flash('Канал не найден!', 'error')
-        return redirect(url_for('channels'))
-    except Exception as e:
-        db.rollback()
-        flash(f'Ошибка при удалении канала: {str(e)}', 'error')
-        return redirect(url_for('channels'))
-    finally:
-        db.close()
-
-@app.route('/gunpacks/<int:id>/select_channels', methods=['GET'])
-def select_channels_for_post(id):
-    db = get_db()
-    try:
-        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
-        if not gunpack:
-            flash('Ганпак не найден!', 'error')
-            return redirect(url_for('gunpacks'))
-        
-        channels = db.query(Channel).all()
-        
-        return render_template('channel_select.html', gunpack=gunpack, channels=channels)
-    finally:
-        db.close()
-
-@app.route('/gunpacks/<int:id>/create_post', methods=['POST'])
-def create_gunpack_post(id):
-    db = get_db()
-    try:
-        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
-        if not gunpack:
-            flash('Ганпак не найден!', 'error')
-            return redirect(url_for('gunpacks'))
-        
-        # Получаем данные из формы
-        selected_channels = request.form.getlist('channels')
-        post_text = request.form.get('post_text', '').strip()
-        
-        if not selected_channels:
-            flash('Выберите хотя бы один канал!', 'error')
-            return redirect(url_for('select_channels_for_post', id=id))
-        
-        # Асинхронная логика создания постов
-        from channel_poster import ChannelPoster
-        import asyncio
-        
-        async def run_posting():
-            # Создаем один экземпляр постера для всех каналов
-            poster = ChannelPoster(config.BOT_TOKEN)
-            results = []
-            try:
-                for channel in selected_channels:
-                    # Передаем текст (если пустой — постер сам решит, что отправить)
-                    result = await poster.create_post_with_button(
-                        channel, 
-                        id, 
-                        post_text if post_text else None
-                    )
-                    results.append({"channel": channel, "success": result is not None})
-            finally:
-                # ОЧЕНЬ ВАЖНО: Закрываем сессию бота после цикла
-                if hasattr(poster, 'bot') and hasattr(poster.bot, 'session'):
-                    await poster.bot.session.close()
-            return results
-
-        # Запускаем асинхронную задачу внутри синхронного Flask
-        try:
-            # asyncio.run() — идеальный вариант для разовых задач в Flask
-            results = asyncio.run(run_posting())
-        except Exception as e:
-            print(f"Критическая ошибка при выполнении create_posts: {e}")
-            results = []
-        
-        # Анализ результатов для вывода Flash-сообщения
-        success_count = sum(1 for r in results if r['success'])
-        total_count = len(results)
-        
-        if total_count == 0:
-            flash('❌ Произошла техническая ошибка при запуске рассылки', 'error')
-        elif success_count == total_count:
-            flash(f'✅ Успех! Посты опубликованы во всех каналах ({success_count})', 'success')
-        elif success_count > 0:
-            flash(f'⚠️ Частичный успех: {success_count} из {total_count} постов создано', 'warning')
-        else:
-            flash('❌ Не удалось создать посты. Проверьте права бота в каналах', 'error')
-        
-        return redirect(url_for('gunpacks'))
-        
-    except Exception as e:
-        print(f"Ошибка в роуте create_gunpack_post: {e}")
-        flash(f'Произошла системная ошибка: {str(e)}', 'error')
-        return redirect(url_for('gunpacks'))
-    finally:
-        db.close()
-
-@app.route('/statistics')
-def statistics():
-    db = get_db()
-    try:
-        # Общее количество пользователей (как на главной)
-        total_users = db.query(User).count()
-        
-        gunpacks = db.query(Gunpack).filter(Gunpack.is_active == True).all()
-        stats = []
-        
-        for gunpack in gunpacks:
-            # Количество скачиваний
-            downloads_count = db.query(Download).filter(Download.gunpack_id == gunpack.id).count()
-            
-            # Количество уникальных пользователей
-            unique_users_count = db.query(Download).filter(Download.gunpack_id == gunpack.id).distinct(Download.user_id).count()
-            
-            stats.append({
-                'gunpack': gunpack,
-                'downloads_count': downloads_count,
-                'unique_users_count': unique_users_count
-            })
-        
-        return render_template('statistics_dark.html', stats=stats, total_users=total_users)
-    finally:
-        db.close()
-
-@app.route('/export/users/xml')
-def export_users_xml():
-    db = get_db()
-    try:
-        users = db.query(User).all()
-        
-        root = ET.Element('users')
-        for user in users:
-            user_elem = ET.SubElement(root, 'user')
-            ET.SubElement(user_elem, 'id').text = str(user.id)
-            ET.SubElement(user_elem, 'telegram_id').text = str(user.telegram_id)
-            ET.SubElement(user_elem, 'username').text = user.username or ''
-            ET.SubElement(user_elem, 'first_name').text = user.first_name or ''
-            ET.SubElement(user_elem, 'last_name').text = user.last_name or ''
-            ET.SubElement(user_elem, 'created_at').text = user.created_at.isoformat()
-        
-        xml_str = minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
-        
-        output = io.BytesIO()
-        output.write(xml_str.encode('utf-8'))
-        output.seek(0)
-        
-        return send_file(
-            output,
-            as_attachment=True,
-            download_name=f'users_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xml',
-            mimetype='text/xml'
-        )
-    finally:
-        db.close()
-
-@app.route('/api/gunpacks/<int:id>/stats')
-def api_gunpack_stats(id):
-    db = get_db()
-    try:
-        gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
-        if not gunpack:
-            return jsonify({'error': 'Gunpack not found'}), 404
-        
-        downloads = db.query(Download).filter(Download.gunpack_id == id).count()
-        recent_downloads = db.query(Download).filter(Download.gunpack_id == id).order_by(Download.downloaded_at.desc()).limit(10).all()
-        
-        return jsonify({
-            'gunpack': {
-                'id': gunpack.id,
-                'name': gunpack.name,
-                'downloads': downloads
-            },
-            'recent_downloads': [
-                {
-                    'user': download.user.first_name,
-                    'downloaded_at': download.downloaded_at.isoformat()
-                }
-                for download in recent_downloads
-            ]
-        })
-    finally:
-        db.close()
+# Добавь @login_required и @admin_required к остальным роутам (delete, toggle, channels) по аналогии.
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
