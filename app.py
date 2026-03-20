@@ -107,10 +107,10 @@ def auth_tg():
                 )
                 db.add(user)
                 db.commit()
-            elif user.role != 'admin':
+           # elif user.role != 'admin':
                 # Если ты есть, но не админ — даем права
-                user.role = 'admin'
-                db.commit()
+              #  user.role = 'admin'
+              #  db.commit()
 
             # 3. Теперь логиним
             login_user(user)
