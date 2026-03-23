@@ -343,6 +343,7 @@ def export_users_json():
         users_list = db.query(User).all()
         data = [{"id": u.id, "tg_id": u.telegram_id, "username": u.username} for u in users_list]
         return jsonify(data)
+
 # --- 9. Рассылка ---
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
@@ -354,8 +355,6 @@ def broadcast():
             message_text = request.form.get('message_text')
             selected_channels = request.form.getlist('channels')
 
-            # Добавляем задачу в очередь бота — без создания нового event loop,
-            # чтобы не конфликтовать с Gunicorn/Waitress
             from broadcast_handler import broadcast_queue
             broadcast_queue.append({
                 'gunpack_id': int(gunpack_id),
@@ -371,9 +370,59 @@ def broadcast():
         channels_list = db.query(Channel).filter(Channel.is_active == True).all()
         return render_template('broadcast_dark.html', gunpacks=gunpacks_list, channels=channels_list)
 
-        gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
-        channels_list = db.query(Channel).filter(Channel.is_active == True).all()
-        return render_template('broadcast_dark.html', gunpacks=gunpacks_list, channels=channels_list)
+# --- 10. API проверки подписки (вызывается JS на странице юзера) ---
+@app.route('/api/check-subscription/<int:gunpack_id>', methods=['POST'])
+@login_required
+def api_check_subscription(gunpack_id):
+    """
+    Сайт спрашивает бота: подписан ли текущий юзер на каналы этого ганпака?
+    Бот проверяет через Telegram API и возвращает результат.
+    После подтверждения подписки — записываем скачивание в БД.
+    """
+    import requests as http_requests
+
+    # У юзера должен быть telegram_id (он залогинен через Telegram)
+    if not current_user.telegram_id:
+        return jsonify({
+            "error": "no_telegram",
+            "message": "Войдите через Telegram чтобы проверить подписку"
+        }), 400
+
+    # Запрос к внутреннему API бота
+    bot_api_url = f"http://127.0.0.1:{config.BOT_API_PORT}/internal/check-subscription"
+    try:
+        resp = http_requests.post(bot_api_url, json={
+            "secret": config.BOT_API_SECRET,
+            "telegram_id": int(current_user.telegram_id),
+            "gunpack_id": gunpack_id,
+        }, timeout=12)
+        result = resp.json()
+    except http_requests.exceptions.ConnectionError:
+        return jsonify({
+            "error": "bot_unavailable",
+            "message": "Бот недоступен. Попробуйте через Telegram-бота."
+        }), 503
+    except Exception as e:
+        return jsonify({"error": "internal", "message": str(e)}), 500
+
+    if resp.status_code != 200:
+        return jsonify(result), resp.status_code
+
+    # Если подписан — записываем скачивание
+    if result.get("subscribed"):
+        with get_db() as db:
+            user = db.query(User).filter(User.id == current_user.id).first()
+            gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
+            if user and gunpack:
+                already = db.query(Download).filter(
+                    Download.user_id == user.id,
+                    Download.gunpack_id == gunpack.id,
+                ).first()
+                if not already:
+                    db.add(Download(user_id=user.id, gunpack_id=gunpack.id))
+                    db.commit()
+
+    return jsonify(result)
 
 @app.route('/demo_user')
 def demo_user():
@@ -388,4 +437,4 @@ def demo_user():
                            gunpacks=gunpacks_list)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

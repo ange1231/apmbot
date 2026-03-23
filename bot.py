@@ -471,12 +471,117 @@ async def back_to_gunpacks(callback: types.CallbackQuery):
     await callback.answer()
 
 # ---------------------------------------------------------------------------
+# Внутренний HTTP API — сайт обращается сюда для проверки подписок
+# Слушает только 127.0.0.1 (не доступен снаружи)
+# ---------------------------------------------------------------------------
+
+from aiohttp import web as aiohttp_web
+
+async def _handle_check_subscription(request: aiohttp_web.Request) -> aiohttp_web.Response:
+    """
+    POST /internal/check-subscription
+    Body JSON: { "secret": "...", "telegram_id": 123, "gunpack_id": 1 }
+    Response:  { "subscribed": true/false, "channels": [...], "download_link": "..." }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return aiohttp_web.json_response({"error": "invalid_json"}, status=400)
+
+    # Проверка секрета
+    if data.get("secret") != config.BOT_API_SECRET:
+        return aiohttp_web.json_response({"error": "forbidden"}, status=403)
+
+    telegram_id = data.get("telegram_id")
+    gunpack_id  = data.get("gunpack_id")
+
+    if not telegram_id or not gunpack_id:
+        return aiohttp_web.json_response({"error": "missing_fields"}, status=400)
+
+    # Достаём ганпак из БД
+    db = get_db()
+    try:
+        gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
+        if not gunpack:
+            return aiohttp_web.json_response({"error": "gunpack_not_found"}, status=404)
+
+        channels = []
+        if gunpack.channels_required:
+            try:
+                channels = json.loads(gunpack.channels_required)
+            except json.JSONDecodeError:
+                channels = []
+
+        # Если каналов нет — сразу разрешаем
+        if not channels:
+            return aiohttp_web.json_response({
+                "subscribed": True,
+                "channels": [],
+                "download_link": gunpack.download_link,
+            })
+
+        # Проверяем подписку через Telegram
+        try:
+            is_subscribed, unsubscribed = await asyncio.wait_for(
+                check_subscription(telegram_id, channels),
+                timeout=10.0,
+            )
+        except asyncio.TimeoutError:
+            return aiohttp_web.json_response({"error": "timeout"}, status=504)
+
+        # Формируем список каналов с флагом подписки для фронтенда
+        channel_info = []
+        for ch in channels:
+            name = ch.lstrip('@').split('/')[-1]
+            if ch.startswith('https://t.me/'):
+                url = ch
+            elif ch.startswith('@'):
+                url = f"https://t.me/{ch[1:]}"
+            else:
+                url = f"https://t.me/{ch.lstrip('@')}"
+            channel_info.append({
+                "name": name,
+                "url": url,
+                "subscribed": ch not in unsubscribed,
+            })
+
+        result = {
+            "subscribed": is_subscribed,
+            "channels": channel_info,
+        }
+        if is_subscribed:
+            result["download_link"] = gunpack.download_link
+
+        return aiohttp_web.json_response(result)
+
+    except Exception as e:
+        logger.error("Ошибка в internal API check-subscription: %s", e, exc_info=True)
+        return aiohttp_web.json_response({"error": "internal"}, status=500)
+    finally:
+        db.close()
+
+
+async def start_internal_api():
+    """Запускает внутренний HTTP-сервер на 127.0.0.1:{BOT_API_PORT}."""
+    app_api = aiohttp_web.Application()
+    app_api.router.add_post('/internal/check-subscription', _handle_check_subscription)
+    runner = aiohttp_web.AppRunner(app_api)
+    await runner.setup()
+    site = aiohttp_web.TCPSite(runner, '127.0.0.1', config.BOT_API_PORT)
+    await site.start()
+    logger.info("Внутренний API запущен на 127.0.0.1:%s", config.BOT_API_PORT)
+
+
+
+
+# ---------------------------------------------------------------------------
 # Запуск
 # ---------------------------------------------------------------------------
 
 async def main():
     logger.info("Запуск бота...")
     from broadcast_handler import process_broadcast_queue
+    await start_internal_api()
     asyncio.create_task(process_broadcast_queue())
     try:
         await dp.start_polling(bot)
