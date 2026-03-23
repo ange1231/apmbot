@@ -8,7 +8,6 @@ from datetime import datetime
 import config
 from database import get_db, User, Gunpack, Download, Channel, init_default_channels
 import os
-import asyncio
 from functools import wraps
 from urllib.parse import parse_qsl
 
@@ -17,8 +16,8 @@ app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
-# ТВОЙ ID ДЛЯ ПРОВЕРКИ АДМИНКИ
-ADMIN_ID = 6211527632 
+# ID главного администратора берётся из .env (ADMIN_ID)
+ADMIN_ID = config.ADMIN_ID
 
 # --- 2. Настройка безопасности ---
 bcrypt = Bcrypt(app)
@@ -354,19 +353,23 @@ def broadcast():
             gunpack_id = request.form.get('gunpack_id')
             message_text = request.form.get('message_text')
             selected_channels = request.form.getlist('channels')
-            
-            from broadcast_handler import send_broadcast_to_channels
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(send_broadcast_to_channels(
-                    int(gunpack_id), message_text, selected_channels, 
-                    request.form.get('media_type', ''), request.form.get('media_url', '')
-                ))
-                flash('Рассылка запущена!', 'success')
-            finally:
-                loop.close()
+
+            # Добавляем задачу в очередь бота — без создания нового event loop,
+            # чтобы не конфликтовать с Gunicorn/Waitress
+            from broadcast_handler import broadcast_queue
+            broadcast_queue.append({
+                'gunpack_id': int(gunpack_id),
+                'message_text': message_text,
+                'selected_channels': selected_channels,
+                'media_type': request.form.get('media_type', ''),
+                'media_url': request.form.get('media_url', ''),
+            })
+            flash(f'Рассылка поставлена в очередь ({len(broadcast_queue)} задач)!', 'success')
             return redirect(url_for('dashboard'))
+
+        gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
+        channels_list = db.query(Channel).filter(Channel.is_active == True).all()
+        return render_template('broadcast_dark.html', gunpacks=gunpacks_list, channels=channels_list)
 
         gunpacks_list = db.query(Gunpack).filter(Gunpack.is_active == True).all()
         channels_list = db.query(Channel).filter(Channel.is_active == True).all()

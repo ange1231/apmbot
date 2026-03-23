@@ -75,8 +75,31 @@ Base.metadata.create_all(engine)
 
 Session = sessionmaker(bind=engine)
 
+class _DbContextManager:
+    """Позволяет использовать get_db() и как обычную сессию (bot.py),
+    и как контекстный менеджер: with get_db() as db: (app.py)."""
+    def __init__(self):
+        self._session = Session()
+
+    # Проброс всех атрибутов SQLAlchemy-сессии
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    # Поддержка with-блока
+    def __enter__(self):
+        return self._session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self._session.rollback()
+        self._session.close()
+        return False
+
+    def close(self):
+        self._session.close()
+
 def get_db():
-    return Session()
+    return _DbContextManager()
 
 def init_default_channels():
     """Инициализация каналов по умолчанию"""
