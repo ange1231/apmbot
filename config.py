@@ -7,6 +7,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 ADMIN_ID = int(os.getenv('ADMIN_ID', 0))
 DB_PATH = os.getenv('DB_PATH', 'database.db')
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key')
+PROXY_URL = os.getenv('PROXY_URL')  # None если не задан — бот запустится без прокси
 
 REQUIRED_CHANNELS = [
     '@channel1',  # Замените на ваши каналы

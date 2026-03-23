@@ -26,13 +26,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Инициализация бота
-# Настройки прокси
-# Формат: http://логин:пароль@айпи:порт
-PROXY_URL = "http://540311:573050@185.76.241.171:43916"
-
-# Инициализация бота через прокси-сессию
-session = AiohttpSession(proxy=PROXY_URL)
-bot = Bot(token=config.BOT_TOKEN, session=session)
+# Прокси берётся из .env (PROXY_URL). Если не задан — бот работает без прокси.
+if config.PROXY_URL:
+    logger.info(f"Запуск с прокси: {config.PROXY_URL.split('@')[-1]}")  # логируем только хост, без логина/пароля
+    session = AiohttpSession(proxy=config.PROXY_URL)
+    bot = Bot(token=config.BOT_TOKEN, session=session)
+else:
+    logger.info("Запуск без прокси")
+    bot = Bot(token=config.BOT_TOKEN)
 dp = Dispatcher()
 
 def get_main_keyboard():
