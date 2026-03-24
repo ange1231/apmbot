@@ -263,11 +263,12 @@ async def cmd_start(message: types.Message):
                 gunpack = db.query(Gunpack).filter(Gunpack.id == gunpack_id).first()
                 if gunpack:
                     class MockCallback:
-                        data = f"gunpack_{gunpack_id}"
-                        from_user = message.from_user
-                        message = message
+                        def __init__(self, msg, gp_id):
+                            self.data = f"gunpack_{gp_id}"
+                            self.from_user = msg.from_user
+                            self.message = msg
                         async def answer(self, text=None, show_alert=None): pass
-                    await gunpack_details(MockCallback())
+                    await gunpack_details(MockCallback(message, gunpack_id))
                     return
             await message.answer("❌ Ганпак не найден!", reply_markup=get_main_keyboard())
             return
