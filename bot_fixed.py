@@ -14,7 +14,7 @@ from aiogram.utils.markdown import escape_markdown_v2
 
 from database import get_db, User, Gunpack, Download, Channel
 import config
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ async def cmd_start(message: types.Message):
             db.commit()
         
         # Отправляем приветствие с логотипом
-        logo_path = os.path.join(os.getcwd(), 'logoSblack.png')
+        logo_path = os.path.join(BASE_DIR, 'logoSblack.png')
         if os.path.exists(logo_path):
             try:
                 await message.answer_photo(
@@ -165,7 +165,7 @@ async def show_gunpacks(message: types.Message):
 async def about_bot(message: types.Message):
     """Информация о боте"""
     # Отправляем информацию с логотипом
-    logo_path = os.path.join(os.getcwd(), 'logoSblack.png')
+    logo_path = os.path.join(BASE_DIR, 'logoSblack.png')
     if os.path.exists(logo_path):
         try:
             await message.answer_photo(
@@ -208,16 +208,7 @@ async def gunpack_details(callback: types.CallbackQuery):
             return
         
         # Получаем каналы из JSON или используем активные каналы из базы
-        if gunpack.channels_required:
-            try:
-                channels = json.loads(gunpack.channels_required)
-            except json.JSONDecodeError as e:
-                print(f"Ошибка парсинга JSON каналов: {e}")
-                channels = []
-        else:
-            # Если каналы не указаны, используем все активные каналы
-            active_channels = db.query(Channel).filter(Channel.is_active == True).all()
-            channels = [channel.name for channel in active_channels]
+        channels = [c.name for c in gunpack.channels]
         
         text = f"📦 {gunpack.name}\n\n"
         text += f"{gunpack.description or ''}\n\n"
@@ -226,24 +217,7 @@ async def gunpack_details(callback: types.CallbackQuery):
         
         # Создаем клавиатуру с кнопками каналов
         channel_buttons = []
-        for channel in channels:
-            # Очищаем имя канала от @ в начале
-            channel_name = channel.lstrip('@')
-            
-            # Создаем правильный URL для канала
-            if channel.startswith('https://t.me/'):
-                channel_link = channel
-            elif channel.startswith('@'):
-                channel_link = f"https://t.me/{channel[1:]}"
-            else:
-                channel_link = f"https://t.me/{channel_name}"
-            
-            # Валидация URL
-            if channel_link and len(channel_link) > 15:  # Минимальная длина для t.me ссылки
-                print(f"Создаю кнопку для канала: {channel_name} -> {channel_link}")
-                channel_buttons.append([InlineKeyboardButton(text=f"📺 {channel_name}", url=channel_link)])
-            else:
-                print(f"Пропускаю невалидный канал: {channel}")
+        channels = [c.name for c in gunpack.channels]
         
         # Добавляем основные кнопки
         channel_buttons.extend([
