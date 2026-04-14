@@ -220,11 +220,11 @@ async def gunpack_details(callback: types.CallbackQuery):
         for channel in channels:
             channel_name = channel.lstrip('@')
             if channel.startswith('https://t.me/'):
-               channel_link = channel
+                channel_link = channel
             elif channel.startswith('@'):
-                 channel_link = f"https://t.me/{channel[1:]}"
+                channel_link = f"https://t.me/{channel[1:]}"
             else:
-                 channel_link = f"https://t.me/{channel_name}"
+                channel_link = f"https://t.me/{channel_name}"
     
             if channel_link and len(channel_link) > 15:
                  channel_buttons.append([InlineKeyboardButton(text=f"📺 {channel_name}", url=channel_link)])
