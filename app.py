@@ -194,7 +194,7 @@ def statistics():
 # --- 5. Управление Ганпаками ---
 @app.route('/gunpacks')
 @login_required
-
+@requires_auth
 def gunpacks():
     with get_db() as db:
         gunpacks_list = db.query(Gunpack).order_by(Gunpack.created_at.desc()).all()
