@@ -216,6 +216,7 @@ async def gunpack_details(callback: types.CallbackQuery):
         text += "Подпишитесь на следующие каналы:\n"
         
         # Создаем клавиатуру с кнопками каналов
+        channel_buttons = []  # ✅ ДОБАВИТЬ ЭТУ СТРОКУ!
         for channel in channels:
             channel_name = channel.lstrip('@')
             if channel.startswith('https://t.me/'):
