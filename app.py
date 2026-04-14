@@ -10,7 +10,8 @@ from database import get_db, User, Gunpack, Download, Channel, init_default_chan
 import os
 from functools import wraps
 from urllib.parse import parse_qsl
-
+import threading
+import asyncio
 # --- 1. Инициализация приложения ---
 app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = config.FLASK_SECRET_KEY
@@ -20,10 +21,32 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 ADMIN_ID = config.ADMIN_ID
 
 # --- 2. Настройка безопасности ---
+
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'admin_password'
+
+def check_auth(username, password):
+    return username == ADMIN_USERNAME and password == ADMIN_PASSWORD
+
+def authenticate():
+    return Response(
+        'Could not verify your access level for that URL.\n'
+        'You have to login with proper credentials', 401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    )
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated_function
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -38,7 +61,16 @@ def admin_required(f):
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
-
+def run_async_in_background(coroutine):
+    def run_in_thread():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(coroutine)
+        finally:
+            loop.close()
+    thread = threading.Thread(target=run_in_thread, daemon=True)
+    thread.start()
 def verify_telegram_data(init_data):
     try:
         vals = dict(parse_qsl(init_data))
@@ -142,6 +174,7 @@ def dashboard():
 @app.route('/users')
 @login_required
 @admin_required
+@requires_auth
 def users():
     with get_db() as db:
         users_list = db.query(User).order_by(User.created_at.desc()).all()
@@ -150,6 +183,7 @@ def users():
 @app.route('/statistics')
 @login_required
 @admin_required
+@requires_auth
 def statistics():
     with get_db() as db:
         total_users = db.query(User).count()
@@ -160,6 +194,7 @@ def statistics():
 # --- 5. Управление Ганпаками ---
 @app.route('/gunpacks')
 @login_required
+
 def gunpacks():
     with get_db() as db:
         gunpacks_list = db.query(Gunpack).order_by(Gunpack.created_at.desc()).all()
@@ -168,6 +203,7 @@ def gunpacks():
 @app.route('/gunpacks/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
+@requires_auth
 def delete_gunpack(id):
     with get_db() as db:
         gp = db.query(Gunpack).get(id)
@@ -180,6 +216,7 @@ def delete_gunpack(id):
 @app.route('/gunpacks/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def new_gunpack():
     with get_db() as db:
         if request.method == 'POST':
@@ -189,21 +226,28 @@ def new_gunpack():
                 description=request.form['description'],
                 image_url=request.form['image_url'],
                 download_link=request.form['download_link'],
-                channels_required=json.dumps(selected_channels),
                 is_active='is_active' in request.form,
                 created_at=datetime.utcnow()
             )
             db.add(gunpack)
+            db.flush()  # Получаем ID
+            
+            # ✅ ORM вместо JSON
+            for channel_name in selected_channels:
+                channel = db.query(Channel).filter(Channel.name == channel_name).first()
+                if channel:
+                    gunpack.channels.append(channel)
+            
             db.commit()
             flash('Ганпак успешно добавлен!', 'success')
             return redirect(url_for('gunpacks'))
         
         all_channels = db.query(Channel).all()
         return render_template('gunpack_form_dark.html', gunpack=None, all_channels=all_channels, gunpack_channels=[])
-
 @app.route('/gunpacks/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def edit_gunpack(id):
     with get_db() as db:
         gunpack = db.query(Gunpack).filter(Gunpack.id == id).first()
@@ -216,21 +260,32 @@ def edit_gunpack(id):
             gunpack.description = request.form['description']
             gunpack.image_url = request.form['image_url']
             gunpack.download_link = request.form['download_link']
-            gunpack.channels_required = json.dumps(request.form.getlist('channels'))
             gunpack.is_active = 'is_active' in request.form
             gunpack.updated_at = datetime.utcnow()
+            
+            # ✅ Очищаем старые связи
+            gunpack.channels.clear()
+            
+            # ✅ Добавляем новые через ORM
+            selected_channels = request.form.getlist('channels')
+            for channel_name in selected_channels:
+                channel = db.query(Channel).filter(Channel.name == channel_name).first()
+                if channel:
+                    gunpack.channels.append(channel)
+            
             db.commit()
             flash('Ганпак успешно обновлен!', 'success')
             return redirect(url_for('gunpacks'))
         
         all_channels = db.query(Channel).all()
-        gunpack_channels = json.loads(gunpack.channels_required) if gunpack.channels_required else []
+        # ✅ Получаем каналы из ORM вместо JSON
+        gunpack_channels = [c.name for c in gunpack.channels]
         return render_template('gunpack_form_dark.html', gunpack=gunpack, all_channels=all_channels, gunpack_channels=gunpack_channels)
-
 # --- 6. Управление Каналами ---
 @app.route('/channels', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def channels():
     with get_db() as db:
         if request.method == 'POST':
@@ -249,6 +304,7 @@ def channels():
 @app.route('/channels/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
+@requires_auth
 def delete_channel(id):
     with get_db() as db:
         ch = db.query(Channel).get(id)
@@ -260,6 +316,7 @@ def delete_channel(id):
 @app.route('/channels/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def edit_channel(id):
     with get_db() as db:
         channel = db.query(Channel).get(id)
@@ -284,6 +341,7 @@ def edit_channel(id):
 @app.route('/users/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def edit_user(id):
     with get_db() as db:
         user = db.query(User).get(id)
@@ -301,6 +359,7 @@ def edit_user(id):
 @app.route('/users/<int:id>/delete', methods=['POST'])
 @login_required
 @admin_required
+@requires_auth
 def delete_user(id):
     with get_db() as db:
         user = db.query(User).get(id)
@@ -316,6 +375,7 @@ def delete_user(id):
 @app.route('/admin/export/xml')
 @login_required
 @admin_required
+@requires_auth
 def export_users_xml():
     flash('Экспорт XML временно недоступен', 'info')
     return redirect(url_for('dashboard'))
@@ -323,6 +383,7 @@ def export_users_xml():
 @app.route('/admin/export/csv')
 @login_required
 @admin_required
+@requires_auth
 def export_users_csv():
     flash('Экспорт CSV временно недоступен', 'info')
     return redirect(url_for('dashboard'))
@@ -330,6 +391,7 @@ def export_users_csv():
 @app.route('/admin/cleanup-database')
 @login_required
 @admin_required
+@requires_auth
 def cleanup_database():
     flash('Очистка базы данных запрещена в целях безопасности', 'error')
     return redirect(url_for('dashboard'))
@@ -338,6 +400,7 @@ def cleanup_database():
 @app.route('/admin/export/json')
 @login_required
 @admin_required
+@requires_auth
 def export_users_json():
     with get_db() as db:
         users_list = db.query(User).all()
@@ -348,6 +411,7 @@ def export_users_json():
 @app.route('/broadcast', methods=['GET', 'POST'])
 @login_required
 @admin_required
+@requires_auth
 def broadcast():
     with get_db() as db:
         if request.method == 'POST':
