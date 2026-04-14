@@ -217,7 +217,7 @@ async def gunpack_details(callback: types.CallbackQuery):
         
         # Создаем клавиатуру с кнопками каналов
         channel_buttons = []
-        channels = [c.name for c in gunpack.channels]
+        
         
         # Добавляем основные кнопки
         channel_buttons.extend([
@@ -310,16 +310,10 @@ async def check_subscriptions(callback: types.CallbackQuery):
             return
         
         # Получаем каналы из JSON или используем активные каналы из базы
-        if gunpack.channels_required:
-            try:
-                channels = json.loads(gunpack.channels_required)
-            except json.JSONDecodeError as e:
-                print(f"Ошибка парсинга JSON каналов: {e}")
-                channels = []
-        else:
-            # Если каналы не указаны, используем все активные каналы
-            active_channels = db.query(Channel).filter(Channel.is_active == True).all()
-            channels = [channel.name for channel in active_channels]
+        channels = [c.name for c in gunpack.channels]
+if not channels:
+    active_channels = db.query(Channel).filter(Channel.is_active == True).all()
+    channels = [c.name for c in active_channels]
         
         print(f"Проверка подписок для ганпака {gunpack_id}, каналы: {channels}")
         
