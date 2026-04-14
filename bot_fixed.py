@@ -321,10 +321,10 @@ async def check_subscriptions(callback: types.CallbackQuery):
             return
         
         # Получаем каналы из JSON или используем активные каналы из базы
-channels = [c.name for c in gunpack.channels]
-if not channels:
-    active_channels = db.query(Channel).filter(Channel.is_active == True).all()
-    channels = [c.name for c in active_channels]
+        channels = [c.name for c in gunpack.channels]
+        if not channels:
+            active_channels = db.query(Channel).filter(Channel.is_active == True).all()
+            channels = [c.name for c in active_channels]
         
         print(f"Проверка подписок для ганпака {gunpack_id}, каналы: {channels}")
         
